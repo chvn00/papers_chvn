@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
+  <title>Papers CHVN</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Papers CHVN, inicio">
+      <span class="brand-mark">P</span>
+      <span><strong>Papers</strong><small>CHVN</small></span>
+    </a>
+    <div class="top-actions">
+      <button class="button button-quiet" id="importButton" type="button">Importar</button>
+      <button class="button button-quiet" id="exportButton" type="button">Exportar</button>
+      <button class="button button-primary" id="newPaperButton" type="button">+ Nuevo paper</button>
+      <input id="importInput" type="file" accept="application/json" hidden>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Archivo de investigación</p>
+        <h1>Tu producción académica,<br><em>en un solo lugar.</em></h1>
+        <p class="hero-copy">Organiza manuscritos, revistas, equipos y decisiones editoriales sin perder el hilo.</p>
+      </div>
+      <div class="date-stamp" aria-label="Fecha actual">
+        <span id="todayDay">—</span>
+        <small id="todayMonth">—</small>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Resumen del registro">
+      <article><span>Total</span><strong id="statTotal">0</strong><small>manuscritos</small></article>
+      <article><span>En proceso</span><strong id="statActive">0</strong><small>en evaluación o revisión</small></article>
+      <article><span>Aceptados</span><strong id="statAccepted">0</strong><small>listos o publicados</small></article>
+      <article><span>Tasa de éxito</span><strong id="statRate">0%</strong><small>sobre decisiones finales</small></article>
+    </section>
+
+    <section class="workspace">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Biblioteca</p>
+          <h2>Manuscritos</h2>
+        </div>
+        <p id="resultsCount" class="results-count">0 registros</p>
+      </div>
+
+      <div class="filters">
+        <label class="search-field">
+          <span class="sr-only">Buscar</span>
+          <input id="searchInput" type="search" placeholder="Buscar por título, revista o coautor…">
+        </label>
+        <label>
+          <span class="sr-only">Filtrar por estado</span>
+          <select id="statusFilter">
+            <option value="">Todos los estados</option>
+          </select>
+        </label>
+        <label>
+          <span class="sr-only">Ordenar</span>
+          <select id="sortFilter">
+            <option value="updated-desc">Actualización reciente</option>
+            <option value="title-asc">Título A–Z</option>
+            <option value="submitted-desc">Envío más reciente</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="paperList" class="paper-list" aria-live="polite"></div>
+      <div id="emptyState" class="empty-state" hidden>
+        <span>✦</span>
+        <h3>Aquí comienza tu archivo</h3>
+        <p>Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.</p>
+        <button class="button button-primary" id="emptyAddButton" type="button">Registrar un paper</button>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="paperDialog">
+    <form id="paperForm" method="dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow" id="dialogEyebrow">Nuevo registro</p>
+          <h2 id="dialogTitle">Agregar paper</h2>
+        </div>
+        <button class="icon-button" id="closeDialogButton" type="button" aria-label="Cerrar">×</button>
+      </div>
+      <input id="paperId" type="hidden">
+      <div class="form-grid">
+        <label class="full">Título del paper <span>*</span><input id="title" required placeholder="Título completo del manuscrito"></label>
+        <label>Journal / revista <span>*</span><input id="journal" required placeholder="Ej. Nature Communications"></label>
+        <label>Estado <span>*</span>
+          <select id="status" required>
+            <option>Borrador</option><option>En preparación</option><option>Enviado</option>
+            <option>En revisión</option><option>Revisión solicitada</option><option>Reenviado</option>
+            <option>Aceptado</option><option>Publicado</option><option>Rechazado</option><option>Retirado</option>
+          </select>
+        </label>
+        <label class="full">Coautores <textarea id="coauthors" rows="2" placeholder="Separa los nombres con comas"></textarea></label>
+        <label class="full">Filiación <textarea id="affiliation" rows="2" placeholder="Universidad, centro o institución"></textarea></label>
+        <label>Fecha de envío <input id="submittedAt" type="date"></label>
+        <label>Enlace / DOI <input id="link" type="url" placeholder="https://…"></label>
+        <label class="full">Notas <textarea id="notes" rows="3" placeholder="Editor, número de manuscrito, próxima acción…"></textarea></label>
+      </div>
+      <div class="dialog-actions">
+        <button class="button button-quiet" id="cancelButton" type="button">Cancelar</button>
+        <button class="button button-primary" type="submit">Guardar registro</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
