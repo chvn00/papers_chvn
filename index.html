@@ -7,7 +7,18 @@
   <title>Papers CHVN</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="app-locked">
+  <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
+    <form class="auth-card" id="loginForm">
+      <span class="brand-mark">P</span>
+      <p class="eyebrow">Archivo privado</p>
+      <h1 id="authTitle">Papers <em>CHVN</em></h1>
+      <p>Ingresa tu contraseña para consultar y administrar tu producción académica.</p>
+      <label>Contraseña<input id="password" type="password" autocomplete="current-password" required></label>
+      <p class="auth-error" id="loginError" role="alert"></p>
+      <button class="button button-primary" type="submit">Ingresar</button>
+    </form>
+  </section>
   <header class="topbar">
     <a class="brand" href="#" aria-label="Papers CHVN, inicio">
       <span class="brand-mark">P</span>
@@ -16,6 +27,7 @@
     <div class="top-actions">
       <button class="button button-quiet" id="importButton" type="button">Importar</button>
       <button class="button button-quiet" id="exportButton" type="button">Exportar</button>
+      <button class="button button-quiet" id="logoutButton" type="button">Salir</button>
       <button class="button button-primary" id="newPaperButton" type="button">+ Nuevo paper</button>
       <input id="importInput" type="file" accept="application/json" hidden>
     </div>
