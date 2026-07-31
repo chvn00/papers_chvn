@@ -12,8 +12,8 @@ const sessionSecret = process.env.SESSION_SECRET;
 const pool = new Pool({ connectionString: databaseUrl, ssl: databaseUrl?.includes("railway.internal") ? false : { rejectUnauthorized: false } });
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
 const loginAttempts = new Map();
-const publicFiles = new Set(["index.html", "styles.css", "app.js"]);
-const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
+const publicFiles = new Set(["index.html", "styles.css", "app.js", "assets/logo-chvn.png"]);
+const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".png": "image/png" };
 
 function json(response, status, payload, headers = {}) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...headers });
