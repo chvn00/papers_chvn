@@ -169,8 +169,10 @@ dialog form { padding: 30px; }
   .brand-logo { width: 66px; height: 38px; }
   .brand-logo-large { width: 180px; height: 100px; }
   .shell { padding: 0 10px 36px; }
-  .stats { display: flex; margin: 0 -10px 16px; overflow-x: auto; border-radius: 0; scroll-snap-type: x proximity; scrollbar-width: thin; }
-  .stats article, .stats article:last-child { min-width: 138px; min-height: 82px; flex: 0 0 42vw; grid-column: auto; padding: 13px 15px; border-right: 1px solid #dce8f0; border-bottom: 0; scroll-snap-align: start; }
+  .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0 -10px 16px; overflow: hidden; border-radius: 0; }
+  .stats article, .stats article:last-child { min-width: 0; min-height: 82px; grid-column: span 2; padding: 13px 10px; border-right: 1px solid #dce8f0; border-bottom: 1px solid #dce8f0; }
+  .stats article:nth-child(n+4) { grid-column: span 3; border-bottom: 0; }
+  .stats article:nth-child(3), .stats article:nth-child(5) { border-right: 0; }
   .stats article::before { top: 13px; bottom: 13px; }
   .stats strong { margin-top: 2px; font-size: 27px; }
   .workspace { margin: 0; padding: 19px 12px; border-radius: 8px; }
@@ -180,7 +182,6 @@ dialog form { padding: 30px; }
   .filters { gap: 7px; margin-bottom: 12px; }
   .paper-list { grid-template-columns: 1fr; }
   .button { padding-inline: 12px; }
-  .stats article { padding: 18px; }
   .paper-card { min-height: 230px; padding: 15px; }
   .paper-card h3 { font-size: 14px; }
   .card-footer { align-items: center; }
