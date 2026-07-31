@@ -56,7 +56,7 @@ async function start() {
 function filteredPapers() {
   const query = elements.search.value.trim().toLocaleLowerCase("es");
   const status = elements.statusFilter.value;
-  return papers.filter(paper => (!query || [paper.title, paper.journal, paper.coauthors, paper.affiliation, paper.notes].join(" ").toLocaleLowerCase("es").includes(query)) && (!status || paper.status === status)).sort((a, b) => {
+  return papers.filter(paper => (!query || [paper.title, paper.journal, paper.coauthors, paper.notes].join(" ").toLocaleLowerCase("es").includes(query)) && (!status || paper.status === status)).sort((a, b) => {
     if (elements.sort.value === "title-asc") return a.title.localeCompare(b.title, "es");
     if (elements.sort.value === "submitted-desc") return (b.submittedAt || "").localeCompare(a.submittedAt || "");
     return (b.updatedAt || "").localeCompare(a.updatedAt || "");
@@ -67,17 +67,15 @@ function render() {
   const visible = filteredPapers();
   elements.list.innerHTML = visible.map(paper => {
     const link = safeURL(paper.link);
-    return `<article class="paper-card"><div><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal:</strong> ${escapeHTML(paper.journal)}</span><span><strong>Envío:</strong> ${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span><strong>Coautores:</strong> ${escapeHTML(paper.coauthors)}</span>` : ""}${paper.affiliation ? `<span><strong>Filiación:</strong> ${escapeHTML(paper.affiliation)}</span>` : ""}${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir enlace ↗</a>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></article>`;
+    return `<article class="paper-card"><div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Ver enlace ↗</a>` : `<span></span>`}<div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
   }).join("");
   elements.empty.hidden = visible.length > 0;
   elements.list.hidden = visible.length === 0;
   $("#resultsCount").textContent = `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
-  const finals = papers.filter(p => FINAL.has(p.status));
-  const accepted = papers.filter(p => SUCCESS.has(p.status)).length;
   $("#statTotal").textContent = papers.length;
-  $("#statActive").textContent = papers.filter(p => ACTIVE.has(p.status)).length;
-  $("#statAccepted").textContent = accepted;
-  $("#statRate").textContent = finals.length ? `${Math.round(accepted / finals.length * 100)}%` : "0%";
+  $("#statDraft").textContent = papers.filter(p => p.status === "Borrador").length;
+  $("#statPreparing").textContent = papers.filter(p => p.status === "En preparación").length;
+  $("#statSubmitted").textContent = papers.filter(p => p.status === "Enviado").length;
 }
 
 function openForm(paper = null) {
