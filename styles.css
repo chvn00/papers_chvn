@@ -25,7 +25,7 @@ button { cursor: pointer; }
 .topbar { height: 96px; max-height: 96px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: clamp(18px, 4vw, 70px); padding: 6px clamp(20px, 4vw, 64px); background: rgba(24, 56, 116, .96); border-bottom: 1px solid var(--line); backdrop-filter: blur(18px); position: sticky; top: 0; z-index: 10; overflow: hidden; }
 .brand { display: flex; flex-direction: column; align-items: center; gap: 0; color: var(--ink); text-decoration: none; }
 .brand-logo { width: 118px; height: 62px; display: block; object-fit: contain; filter: drop-shadow(0 3px 5px rgba(0,25,55,.18)); }
-.brand-logo-large { width: 220px; height: 124px; margin: -20px 0 10px -22px; }
+.brand-logo-large { width: 220px; height: 124px; margin: -20px auto 10px; }
 .brand-caption { display: flex; align-items: center; gap: 5px; margin-top: -7px; color: var(--gold-bright); line-height: 1; }
 .brand-caption strong { font: 800 10px Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
 .brand-caption small { padding-left: 6px; border-left: 1px solid rgba(240,204,122,.6); font-size: 7px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
@@ -110,13 +110,13 @@ dialog form { padding: 30px; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--line); }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; padding: 13px 18px; color: #064477; background: var(--gold-bright); border-radius: 3px; box-shadow: var(--shadow); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .2s; }
 .toast.show { opacity: 1; transform: translateY(0); }
-.auth-gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: var(--paper); background-image: radial-gradient(circle at 58% 8%, rgba(92,158,235,.5), transparent 38%), linear-gradient(145deg, #183874, #397bc9); }
+.auth-gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: #fff; }
 .auth-gate[hidden] { display: none; }
-.auth-card { width: min(430px, 100%); padding: 44px; background: rgba(28,65,129,.95); border: 1px solid rgba(240,204,122,.42); box-shadow: var(--shadow); }
-.auth-card h1 { margin-bottom: 14px; font-size: 46px; }
-.auth-card > p:not(.eyebrow):not(.auth-error) { color: var(--muted); line-height: 1.55; }
-.auth-card label { display: block; margin: 24px 0 10px; color: var(--muted); font-size: 12px; font-weight: 750; }
-.auth-card input { width: 100%; margin-top: 7px; padding: 12px; color: var(--ink); background: #193d79; border: 1px solid var(--line); border-radius: 3px; }
+.auth-card { width: min(430px, 100%); padding: 44px; background: #fff; border: 1px solid #d9e3eb; box-shadow: 0 24px 70px rgba(24,56,116,.16); }
+.auth-card h1 { margin-bottom: 14px; color: #183874; font-size: 46px; }
+.auth-card > p:not(.eyebrow):not(.auth-error) { color: #61788a; line-height: 1.55; }
+.auth-card label { display: block; margin: 24px 0 10px; color: #496579; font-size: 12px; font-weight: 750; }
+.auth-card input { width: 100%; margin-top: 7px; padding: 12px; color: #173b57; background: #f8fafc; border: 1px solid #cbd9e3; border-radius: 3px; }
 .auth-card .button { width: 100%; }
 .auth-error { min-height: 20px; margin: 6px 0; color: var(--danger); font-size: 13px; }
 
