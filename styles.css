@@ -166,7 +166,7 @@ dialog form { padding: 30px; }
   .brand-caption small { display: none; }
   .topbar { height: 82px; max-height: 82px; gap: 5px; padding-inline: 7px; }
   .topbar .button { min-height: 29px; padding-inline: 5px; font-size: 9px; }
-  .brand-logo { width: 66px; height: 38px; }
+  .brand-logo { width: 82px; height: 46px; }
   .brand-logo-large { width: 180px; height: 100px; }
   .shell { padding: 0 10px 36px; }
   .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0 -10px 16px; overflow: hidden; border-radius: 0; }
