@@ -167,5 +167,4 @@ $("#importInput").addEventListener("change", async event => {
 });
 
 STATUSES.forEach(status => elements.statusFilter.insertAdjacentHTML("beforeend", `<option>${status}</option>`));
-const today = new Date(); $("#todayDay").textContent = String(today.getDate()).padStart(2, "0"); $("#todayMonth").textContent = new Intl.DateTimeFormat("es-CO", { month: "short" }).format(today).replace(".", "");
 render(); start();
