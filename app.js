@@ -142,10 +142,11 @@ elements.list.addEventListener("keydown", event => {
 
 function openPdfPreview(paper) {
   const url = `/api/papers/${paper.id}/pdf`;
+  const previewUrl = `${url}#view=Fit&toolbar=1&navpanes=0`;
   $("#pdfPreviewTitle").textContent = paper.title;
   $("#openPdfNew").href = url;
   $("#openPdfMobile").href = url;
-  elements.pdfFrame.src = url;
+  elements.pdfFrame.src = previewUrl;
   elements.pdfDialog.showModal();
 }
 
