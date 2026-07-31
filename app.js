@@ -144,6 +144,7 @@ function openPdfPreview(paper) {
   const url = `/api/papers/${paper.id}/pdf`;
   $("#pdfPreviewTitle").textContent = paper.title;
   $("#openPdfNew").href = url;
+  $("#openPdfMobile").href = url;
   elements.pdfFrame.src = url;
   elements.pdfDialog.showModal();
 }
