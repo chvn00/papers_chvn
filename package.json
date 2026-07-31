@@ -1,0 +1,12 @@
+{
+  "name": "papers-chvn",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Registro personal de producción académica",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
