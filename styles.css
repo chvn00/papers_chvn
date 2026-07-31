@@ -22,12 +22,14 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
-.topbar { min-height: 82px; display: flex; align-items: center; justify-content: space-between; padding: 10px clamp(20px, 4vw, 64px); background: rgba(24, 56, 116, .92); border-bottom: 1px solid var(--line); backdrop-filter: blur(18px); position: sticky; top: 0; z-index: 10; }
-.brand { display: flex; align-items: center; gap: 13px; color: var(--ink); text-decoration: none; }
-.brand-logo { width: 102px; height: 56px; display: block; object-fit: contain; filter: drop-shadow(0 6px 9px rgba(0,25,55,.24)); }
+.topbar { min-height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 4px clamp(20px, 4vw, 64px); background: rgba(24, 56, 116, .92); border-bottom: 1px solid var(--line); backdrop-filter: blur(18px); position: sticky; top: 0; z-index: 10; }
+.brand { display: flex; flex-direction: column; align-items: center; gap: 0; color: var(--ink); text-decoration: none; }
+.brand-logo { width: 88px; height: 42px; display: block; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,25,55,.2)); }
 .brand-logo-large { width: 220px; height: 124px; margin: -20px 0 10px -22px; }
-.brand strong { display: block; font: 700 18px Georgia, serif; letter-spacing: .01em; }
-.brand small { display: block; margin-top: 3px; color: var(--gold); font-size: 8px; font-weight: 800; letter-spacing: .24em; text-transform: uppercase; }
+.brand-caption { display: flex; align-items: center; gap: 6px; margin-top: -3px; color: var(--gold-bright); line-height: 1; }
+.brand-caption strong { font: 800 10px Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.brand-caption small { padding-left: 6px; border-left: 1px solid rgba(240,204,122,.6); font-size: 7px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.topbar .button { min-height: 34px; }
 .top-actions { display: flex; gap: 8px; }
 .button { min-height: 40px; padding: 0 17px; color: var(--ink); border: 1px solid transparent; border-radius: 3px; font-weight: 750; transition: transform .15s, background .15s, border-color .15s; }
 .button:hover { transform: translateY(-1px); }
@@ -78,7 +80,7 @@ h1 em { color: var(--green); font-weight: 400; }
 .paper-card::after { content: ""; position: absolute; right: -35px; bottom: -48px; width: 100px; height: 100px; border: 1px solid rgba(211,171,95,.12); border-radius: 50%; }
 .paper-card:hover { z-index: 1; transform: translateY(-3px); border-color: rgba(240,204,122,.7); box-shadow: 0 16px 34px rgba(0,43,79,.3); }
 .paper-card-main { min-width: 0; }
-.paper-card h3 { min-height: 57px; margin: 10px 0 14px; display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; color: #fff; font-size: 18px; line-height: 1.08; }
+.paper-card h3 { margin: 10px 0 14px; color: #fff; font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
 .paper-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; color: var(--muted); font-size: 11px; }
 .paper-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .paper-meta strong { display: block; margin-bottom: 2px; color: var(--gold); font-size: 8px; letter-spacing: .12em; text-transform: uppercase; }
@@ -122,7 +124,7 @@ dialog form { padding: 30px; }
 
 @media (max-width: 1180px) { .paper-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 880px) {
-  .topbar { height: auto; min-height: 72px; }
+  .topbar { height: auto; min-height: 62px; }
   .top-actions .button-quiet { display: none; }
   .hero { min-height: 0; padding: 44px 0; }
   .date-stamp { display: none; }
@@ -136,9 +138,8 @@ dialog form { padding: 30px; }
   .form-grid .full { grid-column: auto; }
 }
 @media (max-width: 560px) {
-  .brand strong { font-size: 15px; }
-  .brand small { display: none; }
-  .brand-logo { width: 84px; height: 48px; }
+  .brand-caption small { display: none; }
+  .brand-logo { width: 76px; height: 37px; }
   .brand-logo-large { width: 180px; height: 100px; }
   .stats { grid-template-columns: 1fr; }
   .stats article, .stats article:last-child { grid-column: auto; border-right: 0; }
