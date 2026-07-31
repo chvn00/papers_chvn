@@ -76,6 +76,7 @@ function render() {
   $("#statDraft").textContent = papers.filter(p => p.status === "Borrador").length;
   $("#statPreparing").textContent = papers.filter(p => p.status === "En preparación").length;
   $("#statSubmitted").textContent = papers.filter(p => p.status === "Enviado").length;
+  $("#statReview").textContent = papers.filter(p => p.status === "En revisión").length;
 }
 
 function openForm(paper = null) {
