@@ -170,12 +170,14 @@ dialog form { padding: 30px; }
   .topbar .brand::after { content: ""; width: 90px; height: 50px; position: absolute; top: 0; left: 50%; pointer-events: none; transform: translateX(-50%); background: linear-gradient(110deg, transparent 32%, rgba(255,255,255,.18) 42%, rgba(255,248,207,.95) 49%, rgba(255,255,255,.62) 54%, transparent 66%); background-size: 260% 100%; -webkit-mask: url("assets/logo-chvn.png") center / contain no-repeat; mask: url("assets/logo-chvn.png") center / contain no-repeat; animation: logo-metal-shine 5.5s ease-in-out infinite; }
   .brand-logo-large { width: 180px; height: 100px; }
   .shell { padding: 0 10px 36px; }
-  .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0 -10px 16px; overflow: hidden; border-radius: 0; }
-  .stats article, .stats article:last-child { min-width: 0; min-height: 82px; grid-column: span 2; padding: 13px 10px; border-right: 1px solid #dce8f0; border-bottom: 1px solid #dce8f0; }
+  .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 0 -10px 12px; overflow: hidden; border-radius: 0; }
+  .stats article, .stats article:last-child { min-width: 0; min-height: 64px; grid-column: span 2; padding: 8px 9px; border-right: 1px solid #dce8f0; border-bottom: 1px solid #dce8f0; }
   .stats article:nth-child(n+4) { grid-column: span 3; border-bottom: 0; }
   .stats article:nth-child(3), .stats article:nth-child(5) { border-right: 0; }
-  .stats article::before { top: 13px; bottom: 13px; }
-  .stats strong { margin-top: 2px; font-size: 27px; }
+  .stats article::before { top: 8px; bottom: 8px; }
+  .stats span { font-size: 8px; letter-spacing: .1em; }
+  .stats strong { margin-top: 1px; font-size: 23px; line-height: .95; }
+  .stats small { margin-top: 2px; font-size: 8px; line-height: 1.1; }
   .workspace { margin: 0; padding: 19px 12px; border-radius: 8px; }
   .section-heading { align-items: center; margin-bottom: 14px; }
   .section-heading h2 { font-size: 30px; }
