@@ -4,8 +4,11 @@ const ACTIVE = new Set(["Enviado", "En revisión", "Revisión solicitada", "Reen
 const SUCCESS = new Set(["Aceptado", "Publicado"]);
 const FINAL = new Set(["Aceptado", "Publicado", "Rechazado", "Retirado"]);
 const $ = selector => document.querySelector(selector);
-const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame") };
+const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
 let papers = loadLocalPapers();
+let pdfJsPromise;
+let activePdfDocument;
+let pdfRenderToken = 0;
 
 function loadLocalPapers() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } }
 function saveLocalMirror() { localStorage.setItem(STORAGE_KEY, JSON.stringify(papers)); }
@@ -140,24 +143,73 @@ elements.list.addEventListener("keydown", event => {
   if (paper?.hasPdf) { event.preventDefault(); openPdfPreview(paper); }
 });
 
+async function renderMobilePdf(url) {
+  const renderToken = ++pdfRenderToken;
+  elements.pdfPages.innerHTML = '<p class="pdf-loading">Preparando todas las páginas…</p>';
+  try {
+    pdfJsPromise ||= import("/vendor/pdf.min.mjs");
+    const [pdfjs, response] = await Promise.all([pdfJsPromise, fetch(url)]);
+    if (response.status === 401) { showLogin(); throw new Error("Sesión requerida"); }
+    if (!response.ok) throw new Error("No fue posible cargar el PDF");
+    pdfjs.GlobalWorkerOptions.workerSrc = "/vendor/pdf.worker.min.mjs";
+    const data = await response.arrayBuffer();
+    if (renderToken !== pdfRenderToken) return;
+    activePdfDocument = await pdfjs.getDocument({ data }).promise;
+    elements.pdfPages.innerHTML = "";
+    const availableWidth = Math.max(260, elements.pdfPages.clientWidth - 20);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
+    for (let pageNumber = 1; pageNumber <= activePdfDocument.numPages; pageNumber += 1) {
+      if (renderToken !== pdfRenderToken) return;
+      const page = await activePdfDocument.getPage(pageNumber);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const cssScale = availableWidth / baseViewport.width;
+      const viewport = page.getViewport({ scale: cssScale * pixelRatio });
+      const pageElement = document.createElement("section");
+      pageElement.className = "pdf-page";
+      pageElement.setAttribute("aria-label", `Página ${pageNumber} de ${activePdfDocument.numPages}`);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      canvas.style.width = `${Math.floor(baseViewport.width * cssScale)}px`;
+      canvas.style.height = `${Math.floor(baseViewport.height * cssScale)}px`;
+      pageElement.append(canvas);
+      elements.pdfPages.append(pageElement);
+      await page.render({ canvasContext: canvas.getContext("2d", { alpha: false }), viewport }).promise;
+      page.cleanup();
+    }
+  } catch (error) {
+    if (renderToken === pdfRenderToken) elements.pdfPages.innerHTML = `<p class="pdf-loading pdf-error">${escapeHTML(error.message)}. Usa “Abrir PDF” para verlo aparte.</p>`;
+  }
+}
+
 function openPdfPreview(paper) {
   const url = `/api/papers/${paper.id}/pdf`;
-  const previewUrl = window.matchMedia("(max-width: 560px)").matches ? `${url}#view=Fit&toolbar=1&navpanes=0` : url;
+  const mobilePreview = window.matchMedia("(max-width: 560px)").matches;
   $("#pdfPreviewTitle").textContent = paper.title;
   $("#openPdfNew").href = url;
   $("#openPdfMobile").href = url;
-  elements.pdfFrame.src = previewUrl;
   elements.pdfDialog.showModal();
+  elements.pdfFrame.hidden = mobilePreview;
+  elements.pdfPages.hidden = !mobilePreview;
+  if (mobilePreview) renderMobilePdf(url);
+  else elements.pdfFrame.src = url;
 }
 
 function closePdfPreview() {
   elements.pdfDialog.close();
+}
+
+function resetPdfPreview() {
+  pdfRenderToken += 1;
+  activePdfDocument?.destroy();
+  activePdfDocument = null;
   elements.pdfFrame.src = "about:blank";
+  elements.pdfPages.innerHTML = "";
 }
 
 $("#closePdfButton").addEventListener("click", closePdfPreview);
 elements.pdfDialog.addEventListener("click", event => { if (event.target === elements.pdfDialog) closePdfPreview(); });
-elements.pdfDialog.addEventListener("close", () => { elements.pdfFrame.src = "about:blank"; });
+elements.pdfDialog.addEventListener("close", resetPdfPreview);
 
 function selectPdf(paper, button) {
   const input = document.createElement("input");

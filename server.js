@@ -14,7 +14,11 @@ const SESSION_SECONDS = 60 * 60 * 24 * 7;
 const MAX_PDF_SIZE = 25 * 1024 * 1024;
 const loginAttempts = new Map();
 const publicFiles = new Set(["index.html", "styles.css", "app.js", "assets/logo-chvn.png"]);
-const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".png": "image/png" };
+const vendorFiles = new Map([
+  ["vendor/pdf.min.mjs", path.join(root, "node_modules/pdfjs-dist/build/pdf.min.mjs")],
+  ["vendor/pdf.worker.min.mjs", path.join(root, "node_modules/pdfjs-dist/build/pdf.worker.min.mjs")]
+]);
+const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".png": "image/png" };
 
 function json(response, status, payload, headers = {}) {
   response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...headers });
@@ -235,12 +239,12 @@ async function api(request, response, pathname) {
 
 function serveFile(request, response, pathname) {
   const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  if (!publicFiles.has(relativePath)) return response.writeHead(404).end("Not found");
-  const filePath = path.join(root, relativePath);
+  const filePath = vendorFiles.get(relativePath) || (publicFiles.has(relativePath) ? path.join(root, relativePath) : null);
+  if (!filePath) return response.writeHead(404).end("Not found");
   fs.stat(filePath, (error, stats) => {
     if (error || !stats.isFile()) return response.writeHead(404).end("Not found");
     const cacheControl = path.extname(filePath) === ".png" ? "public, max-age=86400" : "no-cache, no-store, must-revalidate";
-    response.writeHead(200, { "Content-Type": mimeTypes[path.extname(filePath)], "Cache-Control": cacheControl, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'", "Referrer-Policy": "no-referrer" });
+    response.writeHead(200, { "Content-Type": mimeTypes[path.extname(filePath)], "Cache-Control": cacheControl, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'self'; style-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'", "Referrer-Policy": "no-referrer" });
     fs.createReadStream(filePath).pipe(response);
   });
 }
