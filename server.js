@@ -187,7 +187,8 @@ function serveFile(request, response, pathname) {
   const filePath = path.join(root, relativePath);
   fs.stat(filePath, (error, stats) => {
     if (error || !stats.isFile()) return response.writeHead(404).end("Not found");
-    response.writeHead(200, { "Content-Type": mimeTypes[path.extname(filePath)], "Cache-Control": path.extname(filePath) === ".html" ? "no-cache" : "public, max-age=3600", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'", "Referrer-Policy": "no-referrer" });
+    const cacheControl = path.extname(filePath) === ".png" ? "public, max-age=86400" : "no-cache, no-store, must-revalidate";
+    response.writeHead(200, { "Content-Type": mimeTypes[path.extname(filePath)], "Cache-Control": cacheControl, "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'", "Referrer-Policy": "no-referrer" });
     fs.createReadStream(filePath).pipe(response);
   });
 }
