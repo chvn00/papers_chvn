@@ -11,6 +11,7 @@ const appPassword = process.env.APP_PASSWORD;
 const sessionSecret = process.env.SESSION_SECRET;
 const pool = new Pool({ connectionString: databaseUrl, ssl: databaseUrl?.includes("railway.internal") ? false : { rejectUnauthorized: false } });
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
+const MAX_PDF_SIZE = 25 * 1024 * 1024;
 const loginAttempts = new Map();
 const publicFiles = new Set(["index.html", "styles.css", "app.js", "assets/logo-chvn.png"]);
 const mimeTypes = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".png": "image/png" };
@@ -71,6 +72,24 @@ async function readBody(request) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
+async function readRawBody(request, maxSize) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxSize) throw new Error("El PDF supera el límite de 25 MB");
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
+function safeFilename(value) {
+  let decoded = "paper.pdf";
+  try { decoded = decodeURIComponent(String(value || decoded)); } catch {}
+  const cleaned = decoded.replace(/[\r\n\/\\]/g, "_").replace(/[^\p{L}\p{N}._() -]/gu, "_").trim().slice(0, 180);
+  return (cleaned || "paper.pdf").toLowerCase().endsWith(".pdf") ? cleaned : `${cleaned}.pdf`;
+}
+
 function normalizePaper(input = {}) {
   const text = key => String(input[key] || "").trim();
   const title = text("title");
@@ -89,7 +108,8 @@ function fromRow(row) {
   return {
     id: row.id, title: row.title, journal: row.journal, status: row.status, coauthors: row.coauthors || "",
     affiliation: row.affiliation || "", submittedAt: dateOnly(row.submitted_at),
-    link: row.link || "", notes: row.notes || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at)
+    link: row.link || "", notes: row.notes || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at),
+    hasPdf: Boolean(row.has_pdf), pdfName: row.pdf_name || "", pdfSize: Number(row.pdf_size || 0)
   };
 }
 
@@ -134,7 +154,8 @@ async function api(request, response, pathname) {
   if (!hasValidSession(request)) return json(response, 401, { error: "Sesión requerida" });
 
   if (pathname === "/api/papers" && request.method === "GET") {
-    const result = await pool.query("SELECT * FROM papers ORDER BY updated_at DESC");
+    const result = await pool.query(`SELECT p.*, (f.paper_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
+      FROM papers p LEFT JOIN paper_pdfs f ON f.paper_id = p.id ORDER BY p.updated_at DESC`);
     return json(response, 200, result.rows.map(fromRow));
   }
 
@@ -142,6 +163,36 @@ async function api(request, response, pathname) {
     const paper = normalizePaper(await readBody(request));
     const result = await pool.query(upsertSql, paperValues(paper));
     return json(response, 201, fromRow(result.rows[0]));
+  }
+
+  const pdfMatch = pathname.match(/^\/api\/papers\/([a-zA-Z0-9-]+)\/pdf$/);
+  if (pdfMatch && request.method === "POST") {
+    if (!(request.headers["content-type"] || "").toLowerCase().startsWith("application/pdf")) return json(response, 415, { error: "Selecciona un archivo PDF válido" });
+    const content = await readRawBody(request, MAX_PDF_SIZE);
+    if (content.length < 5 || content.subarray(0, 5).toString("ascii") !== "%PDF-") return json(response, 400, { error: "El archivo no contiene un PDF válido" });
+    const filename = safeFilename(request.headers["x-file-name"]);
+    const result = await pool.query(`INSERT INTO paper_pdfs (paper_id, filename, mime_type, size_bytes, content, uploaded_at)
+      SELECT id, $2, 'application/pdf', $3, $4, NOW() FROM papers WHERE id=$1
+      ON CONFLICT (paper_id) DO UPDATE SET filename=EXCLUDED.filename, mime_type=EXCLUDED.mime_type,
+      size_bytes=EXCLUDED.size_bytes, content=EXCLUDED.content, uploaded_at=NOW()
+      RETURNING filename, size_bytes, uploaded_at`, [pdfMatch[1], filename, content.length, content]);
+    if (!result.rowCount) return json(response, 404, { error: "Paper no encontrado" });
+    return json(response, 201, { hasPdf: true, pdfName: result.rows[0].filename, pdfSize: Number(result.rows[0].size_bytes) });
+  }
+
+  if (pdfMatch && request.method === "GET") {
+    const result = await pool.query("SELECT filename, mime_type, size_bytes, content FROM paper_pdfs WHERE paper_id=$1", [pdfMatch[1]]);
+    if (!result.rowCount) return json(response, 404, { error: "Este paper no tiene un PDF cargado" });
+    const file = result.rows[0];
+    response.writeHead(200, {
+      "Content-Type": file.mime_type,
+      "Content-Length": file.size_bytes,
+      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff"
+    });
+    response.end(file.content);
+    return;
   }
 
   const match = pathname.match(/^\/api\/papers\/([a-zA-Z0-9-]+)$/);
@@ -170,7 +221,8 @@ async function api(request, response, pathname) {
         await client.query(upsertSql, paperValues(paper));
       }
       await client.query("COMMIT");
-      const result = await client.query("SELECT * FROM papers ORDER BY updated_at DESC");
+      const result = await client.query(`SELECT p.*, (f.paper_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
+        FROM papers p LEFT JOIN paper_pdfs f ON f.paper_id = p.id ORDER BY p.updated_at DESC`);
       return json(response, 200, result.rows.map(fromRow));
     } catch (error) {
       await client.query("ROLLBACK");
@@ -202,6 +254,11 @@ async function initialize() {
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
   await pool.query("CREATE INDEX IF NOT EXISTS papers_updated_at_idx ON papers (updated_at DESC)");
+  await pool.query(`CREATE TABLE IF NOT EXISTS paper_pdfs (
+    paper_id UUID PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'application/pdf', size_bytes INTEGER NOT NULL,
+    content BYTEA NOT NULL, uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
   http.createServer(async (request, response) => {
     try {
       const pathname = decodeURIComponent(new URL(request.url, "http://localhost").pathname);
@@ -209,7 +266,8 @@ async function initialize() {
       else serveFile(request, response, pathname);
     } catch (error) {
       console.error(error);
-      if (!response.headersSent) json(response, 500, { error: "Error interno" });
+      const tooLarge = error.message === "El PDF supera el límite de 25 MB";
+      if (!response.headersSent) json(response, tooLarge ? 413 : 500, { error: tooLarge ? error.message : "Error interno" });
       else response.end();
     }
   }).listen(port, "0.0.0.0", () => console.log(`Papers CHVN disponible en el puerto ${port}`));

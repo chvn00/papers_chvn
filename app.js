@@ -67,7 +67,7 @@ function render() {
   const visible = filteredPapers();
   elements.list.innerHTML = visible.map(paper => {
     const link = safeURL(paper.link);
-    return `<article class="paper-card"><div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Ver enlace ↗</a>` : `<span></span>`}<div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
+    return `<article class="paper-card"><div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer"><div class="paper-resources">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Enlace ↗</a>` : ""}${paper.hasPdf ? `<a class="paper-link pdf-open" href="/api/papers/${paper.id}/pdf" target="_blank" rel="noopener" title="${escapeHTML(paper.pdfName)}">Ver PDF</a>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
   }).join("");
   elements.empty.hidden = visible.length > 0;
   elements.list.hidden = visible.length === 0;
@@ -104,7 +104,7 @@ elements.form.addEventListener("submit", async event => {
   const paper = {}; ["title", "journal", "status", "coauthors", "affiliation", "submittedAt", "link", "notes"].forEach(key => paper[key] = $(`#${key}`).value.trim());
   try {
     const saved = await request(id ? `/api/papers/${id}` : "/api/papers", { method: id ? "PUT" : "POST", body: JSON.stringify(paper) });
-    if (id) papers = papers.map(item => item.id === id ? saved : item); else papers.unshift(saved);
+    if (id) papers = papers.map(item => item.id === id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item); else papers.unshift(saved);
     saveLocalMirror(); render(); closeForm(); showToast(id ? "Registro actualizado en PostgreSQL" : "Paper guardado en PostgreSQL");
   } catch (error) { alert(error.message); }
 });
@@ -112,7 +112,9 @@ elements.form.addEventListener("submit", async event => {
 elements.list.addEventListener("click", async event => {
   const editId = event.target.closest("[data-edit]")?.dataset.edit;
   const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
+  const uploadId = event.target.closest("[data-upload-pdf]")?.dataset.uploadPdf;
   if (editId) openForm(papers.find(p => p.id === editId));
+  if (uploadId) selectPdf(papers.find(p => p.id === uploadId), event.target.closest("[data-upload-pdf]"));
   if (deleteId) {
     const paper = papers.find(p => p.id === deleteId);
     if (confirm(`¿Eliminar “${paper.title}”? Esta acción no se puede deshacer.`)) {
@@ -121,6 +123,31 @@ elements.list.addEventListener("click", async event => {
     }
   }
 });
+
+function selectPdf(paper, button) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "application/pdf,.pdf";
+  input.addEventListener("change", async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    if (file.type && file.type !== "application/pdf") return alert("Selecciona un archivo PDF válido.");
+    if (file.size > 25 * 1024 * 1024) return alert("El PDF no puede superar 25 MB.");
+    if (paper.hasPdf && !confirm(`Este paper ya tiene “${paper.pdfName}”. ¿Quieres reemplazarlo?`)) return;
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = "Cargando…";
+    try {
+      const response = await fetch(`/api/papers/${paper.id}/pdf`, { method: "POST", headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent(file.name) }, body: file });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 401) { showLogin(); throw new Error("Sesión requerida"); }
+      if (!response.ok) throw new Error(result.error || "No fue posible cargar el PDF");
+      papers = papers.map(item => item.id === paper.id ? { ...item, ...result } : item);
+      saveLocalMirror(); render(); showToast("PDF guardado en PostgreSQL");
+    } catch (error) { alert(error.message); button.disabled = false; button.textContent = originalText; }
+  });
+  input.click();
+}
 
 [$("#newPaperButton"), $("#emptyAddButton")].forEach(button => button.addEventListener("click", () => openForm()));
 [$("#closeDialogButton"), $("#cancelButton")].forEach(button => button.addEventListener("click", closeForm));

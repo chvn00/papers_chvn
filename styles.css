@@ -88,6 +88,11 @@ h1 em { color: var(--green); font-weight: 400; }
 .badge.accepted { color: #b4e9c9; background: rgba(59,165,121,.2); }
 .badge.rejected { color: #ffaaa0; background: rgba(239,142,131,.12); border-color: rgba(239,142,131,.25); }
 .card-footer { min-height: 32px; display: flex; align-items: end; justify-content: space-between; gap: 8px; margin-top: 14px; padding-top: 11px; position: relative; z-index: 1; border-top: 1px solid var(--line); }
+.paper-resources { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; }
+.pdf-upload { min-height: 27px; padding: 0 8px; color: #fff1c8; background: rgba(240,204,122,.08); border: 1px solid rgba(240,204,122,.42); border-radius: 3px; font-size: 9px; font-weight: 800; }
+.pdf-upload:hover { color: #173b57; background: var(--gold-bright); }
+.pdf-upload:disabled { cursor: wait; opacity: .65; }
+.pdf-open { color: #8ce1bb; }
 .card-actions { display: flex; gap: 5px; }
 .icon-button { width: 29px; height: 29px; padding: 0; color: var(--muted); background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: 3px; font-size: 16px; }
 .icon-button:hover { color: var(--gold-bright); background: rgba(211,171,95,.1); border-color: rgba(211,171,95,.4); }
