@@ -74,6 +74,8 @@ h1 em { color: var(--green); font-weight: 400; }
 .paper-card { min-width: 0; min-height: 272px; display: flex; flex-direction: column; justify-content: space-between; padding: 18px; position: relative; overflow: hidden; background: linear-gradient(145deg, rgba(40,91,167,.98), rgba(23,58,119,.98)); border: 1px solid var(--line); border-top: 2px solid var(--green); transition: border-color .18s, box-shadow .18s, transform .18s; }
 .paper-card::after { content: ""; position: absolute; right: -35px; bottom: -48px; width: 100px; height: 100px; border: 1px solid rgba(211,171,95,.12); border-radius: 50%; }
 .paper-card:hover { z-index: 1; transform: translateY(-3px); border-color: rgba(240,204,122,.7); box-shadow: 0 16px 34px rgba(0,43,79,.3); }
+.paper-card.has-pdf { cursor: pointer; }
+.paper-card.has-pdf:focus-visible { outline: 3px solid var(--gold-bright); outline-offset: 3px; }
 .paper-card-main { min-width: 0; }
 .paper-card h3 { margin: 10px 0 14px; color: #fff; font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
 .paper-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; color: var(--muted); font-size: 11px; }
@@ -93,7 +95,7 @@ h1 em { color: var(--green); font-weight: 400; }
 .card-actions { display: flex; gap: 5px; }
 .icon-button { width: 29px; height: 29px; padding: 0; color: var(--muted); background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: 3px; font-size: 16px; }
 .icon-button:hover { color: var(--gold-bright); background: rgba(211,171,95,.1); border-color: rgba(211,171,95,.4); }
-.paper-link { color: var(--gold-bright); font-size: 10px; font-weight: 750; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.paper-link { padding: 0; color: var(--gold-bright); background: transparent; border: 0; font-size: 10px; font-weight: 750; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .empty-state { padding: 70px 20px; text-align: center; background: #edf5fa; border: 1px dashed #9cb9cd; }
 .empty-state > span { display: block; margin-bottom: 10px; color: var(--gold); font-size: 30px; }
 .empty-state h3 { color: #173b57; font-size: 26px; }
@@ -102,6 +104,15 @@ h1 em { color: var(--green); font-weight: 400; }
 dialog { width: min(720px, calc(100% - 30px)); max-height: calc(100vh - 30px); padding: 0; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; box-shadow: var(--shadow); }
 dialog::backdrop { background: rgba(0,36,69,.78); backdrop-filter: blur(5px); }
 dialog form { padding: 30px; }
+.pdf-dialog { width: min(1200px, calc(100% - 28px)); height: min(90vh, 900px); max-height: calc(100vh - 28px); background: #eaf0f5; }
+.pdf-viewer { height: 100%; display: flex; flex-direction: column; }
+.pdf-viewer-head { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 18px 14px 22px; color: #173b57; background: #fff; border-bottom: 1px solid #d4e0e8; }
+.pdf-viewer-head h2 { max-width: 760px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 20px; }
+.pdf-viewer-head .eyebrow { margin-bottom: 5px; }
+.pdf-viewer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pdf-viewer-actions .button-quiet { color: #173b57; border-color: #c8d8e3; }
+.pdf-viewer-actions .icon-button { color: #173b57; border-color: #c8d8e3; }
+.pdf-viewer iframe { width: 100%; flex: 1; background: #fff; border: 0; }
 .dialog-head { display: flex; justify-content: space-between; margin-bottom: 26px; }
 .dialog-head h2 { font-size: 34px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px; }

@@ -4,7 +4,7 @@ const ACTIVE = new Set(["Enviado", "En revisión", "Revisión solicitada", "Reen
 const SUCCESS = new Set(["Aceptado", "Publicado"]);
 const FINAL = new Set(["Aceptado", "Publicado", "Rechazado", "Retirado"]);
 const $ = selector => document.querySelector(selector);
-const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError") };
+const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame") };
 let papers = loadLocalPapers();
 
 function loadLocalPapers() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } }
@@ -67,7 +67,7 @@ function render() {
   const visible = filteredPapers();
   elements.list.innerHTML = visible.map(paper => {
     const link = safeURL(paper.link);
-    return `<article class="paper-card"><div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer"><div class="paper-resources">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Enlace ↗</a>` : ""}${paper.hasPdf ? `<a class="paper-link pdf-open" href="/api/papers/${paper.id}/pdf" target="_blank" rel="noopener" title="${escapeHTML(paper.pdfName)}">Ver PDF</a>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
+    return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}><div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer"><div class="paper-resources">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Enlace ↗</a>` : ""}${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
   }).join("");
   elements.empty.hidden = visible.length > 0;
   elements.list.hidden = visible.length === 0;
@@ -113,8 +113,10 @@ elements.list.addEventListener("click", async event => {
   const editId = event.target.closest("[data-edit]")?.dataset.edit;
   const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
   const uploadId = event.target.closest("[data-upload-pdf]")?.dataset.uploadPdf;
+  const previewId = event.target.closest("[data-preview-pdf]")?.dataset.previewPdf;
   if (editId) openForm(papers.find(p => p.id === editId));
   if (uploadId) selectPdf(papers.find(p => p.id === uploadId), event.target.closest("[data-upload-pdf]"));
+  if (previewId) openPdfPreview(papers.find(p => p.id === previewId));
   if (deleteId) {
     const paper = papers.find(p => p.id === deleteId);
     if (confirm(`¿Eliminar “${paper.title}”? Esta acción no se puede deshacer.`)) {
@@ -122,7 +124,38 @@ elements.list.addEventListener("click", async event => {
       catch (error) { alert(error.message); }
     }
   }
+  if (!event.target.closest("button, a")) {
+    const paperId = event.target.closest("[data-paper-id]")?.dataset.paperId;
+    if (paperId) {
+      const paper = papers.find(item => item.id === paperId);
+      if (paper.hasPdf) openPdfPreview(paper); else showToast("Carga un PDF para previsualizarlo");
+    }
+  }
 });
+
+elements.list.addEventListener("keydown", event => {
+  if (!["Enter", " "].includes(event.key) || event.target.closest("button, a")) return;
+  const paperId = event.target.closest("[data-paper-id]")?.dataset.paperId;
+  const paper = papers.find(item => item.id === paperId);
+  if (paper?.hasPdf) { event.preventDefault(); openPdfPreview(paper); }
+});
+
+function openPdfPreview(paper) {
+  const url = `/api/papers/${paper.id}/pdf`;
+  $("#pdfPreviewTitle").textContent = paper.title;
+  $("#openPdfNew").href = url;
+  elements.pdfFrame.src = url;
+  elements.pdfDialog.showModal();
+}
+
+function closePdfPreview() {
+  elements.pdfDialog.close();
+  elements.pdfFrame.src = "about:blank";
+}
+
+$("#closePdfButton").addEventListener("click", closePdfPreview);
+elements.pdfDialog.addEventListener("click", event => { if (event.target === elements.pdfDialog) closePdfPreview(); });
+elements.pdfDialog.addEventListener("close", () => { elements.pdfFrame.src = "about:blank"; });
 
 function selectPdf(paper, button) {
   const input = document.createElement("input");
