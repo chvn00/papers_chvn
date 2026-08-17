@@ -82,6 +82,7 @@ function render() {
   $("#statPreparing").textContent = papers.filter(p => p.status === "En preparación").length;
   $("#statSubmitted").textContent = papers.filter(p => p.status === "Enviado").length;
   $("#statReview").textContent = papers.filter(p => p.status === "En revisión").length;
+  $("#statPublished").textContent = papers.filter(p => p.status === "Publicado").length;
 }
 
 function openForm(paper = null) {
