@@ -70,7 +70,9 @@ function render() {
   const visible = filteredPapers();
   elements.list.innerHTML = visible.map(paper => {
     const link = safeURL(paper.link);
-    return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}><div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer"><div class="paper-resources">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Enlace ↗</a>` : ""}${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
+    const published = paper.status === "Publicado";
+    const medal = published ? `<div class="quartile-medal" aria-label="Cuartil ${escapeHTML(paper.quartile || "sin registrar")}" title="Publicación ${escapeHTML(paper.quartile || "sin cuartil")}"><span>${escapeHTML(paper.quartile || "Q?")}</span></div>` : "";
+    return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer"><div class="paper-resources">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Enlace ↗</a>` : ""}${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
   }).join("");
   elements.empty.hidden = visible.length > 0;
   elements.list.hidden = visible.length === 0;
@@ -86,8 +88,15 @@ function openForm(paper = null) {
   elements.form.reset(); $("#paperId").value = paper?.id || "";
   $("#dialogEyebrow").textContent = paper ? "Editar registro" : "Nuevo registro";
   $("#dialogTitle").textContent = paper ? "Actualizar paper" : "Agregar paper";
-  if (paper) ["title", "journal", "status", "coauthors", "affiliation", "submittedAt", "link", "notes"].forEach(key => $(`#${key}`).value = paper[key] || "");
+  if (paper) ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "notes"].forEach(key => $(`#${key}`).value = paper[key] || "");
+  syncQuartileField();
   elements.dialog.showModal(); setTimeout(() => $("#title").focus(), 50);
+}
+function syncQuartileField() {
+  const published = $("#status").value === "Publicado";
+  $("#quartileField").hidden = !published;
+  $("#quartile").required = published;
+  if (!published) $("#quartile").value = "";
 }
 function closeForm() { elements.dialog.close(); }
 function showToast(message) { elements.toast.textContent = message; elements.toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => elements.toast.classList.remove("show"), 2800); }
@@ -104,7 +113,7 @@ $("#logoutButton").addEventListener("click", async () => { await request("/api/l
 elements.form.addEventListener("submit", async event => {
   event.preventDefault();
   const id = $("#paperId").value;
-  const paper = {}; ["title", "journal", "status", "coauthors", "affiliation", "submittedAt", "link", "notes"].forEach(key => paper[key] = $(`#${key}`).value.trim());
+  const paper = {}; ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "notes"].forEach(key => paper[key] = $(`#${key}`).value.trim());
   try {
     const saved = await request(id ? `/api/papers/${id}` : "/api/papers", { method: id ? "PUT" : "POST", body: JSON.stringify(paper) });
     if (id) papers = papers.map(item => item.id === id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item); else papers.unshift(saved);
@@ -237,6 +246,7 @@ function selectPdf(paper, button) {
 }
 
 [$("#newPaperButton"), $("#emptyAddButton")].forEach(button => button.addEventListener("click", () => openForm()));
+$("#status").addEventListener("change", syncQuartileField);
 [$("#closeDialogButton"), $("#cancelButton")].forEach(button => button.addEventListener("click", closeForm));
 [elements.search, elements.statusFilter, elements.sort].forEach(control => control.addEventListener("input", render));
 elements.dialog.addEventListener("click", event => { if (event.target === elements.dialog) closeForm(); });

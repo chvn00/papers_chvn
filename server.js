@@ -98,9 +98,12 @@ function normalizePaper(input = {}) {
   const text = key => String(input[key] || "").trim();
   const title = text("title");
   const journal = text("journal");
+  const status = text("status") || "Borrador";
+  const quartile = status === "Publicado" ? text("quartile").toUpperCase() : "";
   if (!title || !journal) throw new Error("Título y journal son obligatorios");
+  if (status === "Publicado" && !["Q1", "Q2", "Q3", "Q4"].includes(quartile)) throw new Error("Selecciona el cuartil de la publicación");
   return {
-    id: text("id") || crypto.randomUUID(), title, journal, status: text("status") || "Borrador",
+    id: text("id") || crypto.randomUUID(), title, journal, status, quartile,
     coauthors: text("coauthors"), affiliation: text("affiliation"), submittedAt: text("submittedAt") || null,
     link: text("link"), notes: text("notes"), createdAt: text("createdAt") || new Date().toISOString(), updatedAt: new Date().toISOString()
   };
@@ -110,7 +113,7 @@ function fromRow(row) {
   const dateOnly = value => !value ? "" : (typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10));
   const iso = value => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
   return {
-    id: row.id, title: row.title, journal: row.journal, status: row.status, coauthors: row.coauthors || "",
+    id: row.id, title: row.title, journal: row.journal, status: row.status, quartile: row.quartile || "", coauthors: row.coauthors || "",
     affiliation: row.affiliation || "", submittedAt: dateOnly(row.submitted_at),
     link: row.link || "", notes: row.notes || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at),
     hasPdf: Boolean(row.has_pdf), pdfName: row.pdf_name || "", pdfSize: Number(row.pdf_size || 0)
@@ -118,14 +121,14 @@ function fromRow(row) {
 }
 
 const upsertSql = `INSERT INTO papers
-  (id, title, journal, status, coauthors, affiliation, submitted_at, link, notes, created_at, updated_at)
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+  (id, title, journal, status, quartile, coauthors, affiliation, submitted_at, link, notes, created_at, updated_at)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
   ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, journal=EXCLUDED.journal, status=EXCLUDED.status,
-  coauthors=EXCLUDED.coauthors, affiliation=EXCLUDED.affiliation, submitted_at=EXCLUDED.submitted_at,
+  quartile=EXCLUDED.quartile, coauthors=EXCLUDED.coauthors, affiliation=EXCLUDED.affiliation, submitted_at=EXCLUDED.submitted_at,
   link=EXCLUDED.link, notes=EXCLUDED.notes, updated_at=EXCLUDED.updated_at RETURNING *`;
 
 function paperValues(paper) {
-  return [paper.id, paper.title, paper.journal, paper.status, paper.coauthors, paper.affiliation, paper.submittedAt, paper.link, paper.notes, paper.createdAt, paper.updatedAt];
+  return [paper.id, paper.title, paper.journal, paper.status, paper.quartile || null, paper.coauthors, paper.affiliation, paper.submittedAt, paper.link, paper.notes, paper.createdAt, paper.updatedAt];
 }
 
 async function api(request, response, pathname) {
@@ -254,9 +257,10 @@ async function initialize() {
   if (!appPassword || !sessionSecret) throw new Error("APP_PASSWORD y SESSION_SECRET son obligatorias");
   await pool.query(`CREATE TABLE IF NOT EXISTS papers (
     id UUID PRIMARY KEY, title TEXT NOT NULL, journal TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Borrador',
-    coauthors TEXT, affiliation TEXT, submitted_at DATE, link TEXT, notes TEXT,
+    quartile TEXT, coauthors TEXT, affiliation TEXT, submitted_at DATE, link TEXT, notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await pool.query("ALTER TABLE papers ADD COLUMN IF NOT EXISTS quartile TEXT");
   await pool.query("CREATE INDEX IF NOT EXISTS papers_updated_at_idx ON papers (updated_at DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS paper_pdfs (
     paper_id UUID PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,

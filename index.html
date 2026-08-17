@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
   <title>Papers CHVN</title>
-  <link rel="stylesheet" href="styles.css?v=20260731-15">
+  <link rel="stylesheet" href="styles.css?v=20260817-16">
 </head>
 <body class="app-locked">
   <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
@@ -102,6 +102,13 @@
             <option>Aceptado</option><option>Publicado</option><option>Rechazado</option><option>Retirado</option>
           </select>
         </label>
+        <label class="quartile-field full" id="quartileField" hidden>¿En qué cuartil fue publicado? <span>*</span>
+          <select id="quartile">
+            <option value="">Selecciona el cuartil</option>
+            <option value="Q1">Q1</option><option value="Q2">Q2</option>
+            <option value="Q3">Q3</option><option value="Q4">Q4</option>
+          </select>
+        </label>
         <label class="full">Coautores <textarea id="coauthors" rows="2" placeholder="Separa los nombres con comas"></textarea></label>
         <label class="full">Filiación <textarea id="affiliation" rows="2" placeholder="Universidad, centro o institución"></textarea></label>
         <label>Fecha de envío <input id="submittedAt" type="date"></label>
@@ -139,6 +146,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260731-15"></script>
+  <script src="app.js?v=20260817-16"></script>
 </body>
 </html>

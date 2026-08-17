@@ -76,6 +76,11 @@ h1 em { color: var(--green); font-weight: 400; }
 .paper-card:hover { z-index: 1; transform: translateY(-3px); border-color: rgba(240,204,122,.7); box-shadow: 0 16px 34px rgba(0,43,79,.3); }
 .paper-card.has-pdf { cursor: pointer; }
 .paper-card.has-pdf:focus-visible { outline: 3px solid var(--gold-bright); outline-offset: 3px; }
+.paper-card.published h3 { padding-right: 40px; }
+.quartile-medal { width: 52px; height: 52px; display: grid; place-items: center; position: absolute; top: 10px; right: 9px; z-index: 2; overflow: hidden; color: #173b57; background: radial-gradient(circle at 38% 32%, #fff8cc 0 8%, #f8d778 20%, #c8922f 58%, #7c5317 100%); clip-path: polygon(50% 0,61% 19%,79% 8%,82% 30%,100% 34%,85% 50%,100% 66%,80% 70%,79% 92%,60% 81%,50% 100%,40% 81%,21% 92%,20% 70%,0 66%,15% 50%,0 34%,18% 30%,21% 8%,39% 19%); filter: drop-shadow(0 3px 5px rgba(0,20,48,.45)); }
+.quartile-medal::before { content: ""; width: 31px; height: 31px; position: absolute; border: 1px solid rgba(255,250,210,.9); border-radius: 50%; background: linear-gradient(145deg, #f9dd87, #c68e27); box-shadow: inset 0 0 0 2px rgba(112,72,13,.22); }
+.quartile-medal::after { content: ""; width: 16px; height: 76px; position: absolute; top: -13px; left: -24px; transform: rotate(28deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.92), transparent); animation: quartile-medal-shine 3.8s ease-in-out infinite; }
+.quartile-medal span { position: relative; z-index: 1; font-size: 11px; font-weight: 950; letter-spacing: -.03em; text-shadow: 0 1px rgba(255,255,255,.6); }
 .paper-card-main { min-width: 0; }
 .paper-card h3 { margin: 10px 0 14px; color: #fff; font-size: 15px; line-height: 1.2; overflow-wrap: anywhere; }
 .paper-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; color: var(--muted); font-size: 11px; }
@@ -213,6 +218,14 @@ dialog form { padding: 30px; }
   94%, 100% { background-position: -55% 0; opacity: 0; }
 }
 
+@keyframes quartile-medal-shine {
+  0%, 58% { left: -24px; opacity: 0; }
+  64% { opacity: .95; }
+  82% { left: 62px; opacity: .75; }
+  88%, 100% { left: 62px; opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .topbar .brand::after { animation: none; background-position: 45% 0; opacity: .35; }
+  .quartile-medal::after { animation: none; left: 7px; opacity: .28; }
 }
