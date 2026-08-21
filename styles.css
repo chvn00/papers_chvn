@@ -60,7 +60,13 @@ h1 em { color: var(--green); font-weight: 400; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; margin-bottom: 20px; }
 .section-heading h2 { font-size: 38px; }
 .results-count { color: #668096; font-size: 12px; }
+.library-tabs { display: flex; gap: 8px; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #d9e5ed; }
+.library-tab { min-height: 40px; padding: 0 18px; color: #537189; background: #e9f1f6; border: 1px solid #d1e0e9; border-radius: 4px; font-size: 12px; font-weight: 800; }
+.library-tab span { min-width: 22px; display: inline-grid; place-items: center; margin-left: 6px; padding: 3px 6px; color: #567289; background: #fff; border-radius: 20px; font-size: 10px; }
+.library-tab.active { color: #fff; background: linear-gradient(135deg, #1d579e, #173b78); border-color: #1d579e; box-shadow: 0 5px 14px rgba(23,59,120,.2); }
+.library-tab.active span { color: #173b78; }
 .filters { display: grid; grid-template-columns: minmax(260px, 1fr) 210px 220px; gap: 10px; margin-bottom: 18px; }
+.filters.published { grid-template-columns: 1fr; }
 .filters input, .filters select { width: 100%; color: #173b57; background: #fff; border: 1px solid #cedde8; border-radius: 4px; }
 .form-grid input, .form-grid select, .form-grid textarea { width: 100%; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 3px; }
 .filters input, .filters select { height: 44px; padding: 0 14px; }
@@ -71,6 +77,10 @@ h1 em { color: var(--green); font-weight: 400; }
 .search-field input { padding-left: 44px; }
 
 .paper-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.year-heading { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; margin: 12px 0 0; padding: 11px 4px 8px; color: #173b57; border-bottom: 2px solid #d3ab5f; }
+.year-heading:first-child { margin-top: 0; }
+.year-heading span { font: 600 28px Georgia, "Times New Roman", serif; }
+.year-heading small { color: #668096; font-size: 11px; }
 .paper-card { min-width: 0; min-height: 272px; display: flex; flex-direction: column; justify-content: flex-start; padding: 18px; position: relative; overflow: hidden; background: linear-gradient(145deg, rgba(40,91,167,.98), rgba(23,58,119,.98)); border: 1px solid var(--line); border-top: 2px solid var(--green); transition: border-color .18s, box-shadow .18s, transform .18s; }
 .paper-card::after { content: ""; position: absolute; right: -35px; bottom: -48px; width: 100px; height: 100px; border: 1px solid rgba(211,171,95,.12); border-radius: 50%; }
 .paper-card:hover { z-index: 1; transform: translateY(-3px); border-color: rgba(240,204,122,.7); box-shadow: 0 16px 34px rgba(0,43,79,.3); }
@@ -194,6 +204,10 @@ dialog form { padding: 30px; }
   .section-heading h2 { font-size: 30px; }
   .section-heading .eyebrow { margin-bottom: 6px; }
   .filters { gap: 7px; margin-bottom: 12px; }
+  .library-tabs { gap: 6px; margin-bottom: 11px; padding-bottom: 8px; }
+  .library-tab { min-height: 36px; flex: 1; padding: 0 8px; font-size: 11px; }
+  .year-heading { margin-top: 8px; padding-inline: 2px; }
+  .year-heading span { font-size: 24px; }
   .paper-list { grid-template-columns: 1fr; }
   .button { padding-inline: 12px; }
   .paper-card { min-height: 230px; padding: 15px; }

@@ -6,6 +6,7 @@ const FINAL = new Set(["Aceptado", "Publicado", "Rechazado", "Retirado"]);
 const $ = selector => document.querySelector(selector);
 const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
 let papers = loadLocalPapers();
+let currentLibraryTab = "working";
 let pdfJsPromise;
 let activePdfDocument;
 let pdfRenderToken = 0;
@@ -59,31 +60,73 @@ async function start() {
 function filteredPapers() {
   const query = elements.search.value.trim().toLocaleLowerCase("es");
   const status = elements.statusFilter.value;
-  return papers.filter(paper => (!query || [paper.title, paper.journal, paper.coauthors, paper.notes].join(" ").toLocaleLowerCase("es").includes(query)) && (!status || paper.status === status)).sort((a, b) => {
+  return papers.filter(paper => {
+    const inCurrentTab = currentLibraryTab === "published" ? paper.status === "Publicado" : paper.status !== "Publicado";
+    return inCurrentTab && (!query || [paper.title, paper.journal, paper.coauthors, paper.notes].join(" ").toLocaleLowerCase("es").includes(query)) && (currentLibraryTab === "published" || !status || paper.status === status);
+  }).sort((a, b) => {
+    if (currentLibraryTab === "published") {
+      const yearDifference = (Number(publicationYear(b)) || 0) - (Number(publicationYear(a)) || 0);
+      return yearDifference || (b.updatedAt || "").localeCompare(a.updatedAt || "");
+    }
     if (elements.sort.value === "title-asc") return a.title.localeCompare(b.title, "es");
     if (elements.sort.value === "submitted-desc") return (b.submittedAt || "").localeCompare(a.submittedAt || "");
     return (b.updatedAt || "").localeCompare(a.updatedAt || "");
   });
 }
 
+function publicationYear(paper) {
+  const datedValue = paper.submittedAt || paper.updatedAt || "";
+  return String(datedValue).match(/^\d{4}/)?.[0] || "Sin año";
+}
+
+function paperCardHTML(paper) {
+  const link = safeURL(paper.link);
+  const published = paper.status === "Publicado";
+  const medal = published ? `<div class="quartile-medal" aria-label="Cuartil ${escapeHTML(paper.quartile || "sin registrar")}" title="Publicación ${escapeHTML(paper.quartile || "sin cuartil")}"><span>${escapeHTML(paper.quartile || "Q?")}</span></div>` : "";
+  const publicationControl = link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Ver publicación ↗</a><button class="publication-link-edit" type="button" data-publication-link="${paper.id}" aria-label="Cambiar enlace publicado" title="Cambiar enlace">✎</button>` : `<button class="publication-link-add" type="button" data-publication-link="${paper.id}">＋ Cargar enlace publicado</button>`;
+  return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div><div class="card-footer"><div class="paper-resources">${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
+}
+
 function render() {
   const visible = filteredPapers();
-  elements.list.innerHTML = visible.map(paper => {
-    const link = safeURL(paper.link);
-    const published = paper.status === "Publicado";
-    const medal = published ? `<div class="quartile-medal" aria-label="Cuartil ${escapeHTML(paper.quartile || "sin registrar")}" title="Publicación ${escapeHTML(paper.quartile || "sin cuartil")}"><span>${escapeHTML(paper.quartile || "Q?")}</span></div>` : "";
-    const publicationControl = link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Ver publicación ↗</a><button class="publication-link-edit" type="button" data-publication-link="${paper.id}" aria-label="Cambiar enlace publicado" title="Cambiar enlace">✎</button>` : `<button class="publication-link-add" type="button" data-publication-link="${paper.id}">＋ Cargar enlace publicado</button>`;
-    return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div><div class="card-footer"><div class="paper-resources">${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
-  }).join("");
+  if (currentLibraryTab === "published") {
+    let activeYear = "";
+    elements.list.innerHTML = visible.map(paper => {
+      const year = publicationYear(paper);
+      const heading = year !== activeYear ? `<div class="year-heading"><span>${escapeHTML(year)}</span><small>${visible.filter(item => publicationYear(item) === year).length} ${visible.filter(item => publicationYear(item) === year).length === 1 ? "paper" : "papers"}</small></div>` : "";
+      activeYear = year;
+      return `${heading}${paperCardHTML(paper)}`;
+    }).join("");
+  } else elements.list.innerHTML = visible.map(paperCardHTML).join("");
   elements.empty.hidden = visible.length > 0;
   elements.list.hidden = visible.length === 0;
+  $("#emptyTitle").textContent = currentLibraryTab === "published" ? "Aún no hay papers publicados" : "Aquí comienza tu archivo";
+  $("#emptyMessage").textContent = currentLibraryTab === "published" ? "Cuando un paper cambie a Publicado aparecerá aquí, organizado por año." : "Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.";
+  $("#emptyAddButton").hidden = currentLibraryTab === "published";
   $("#resultsCount").textContent = `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
+  $("#workingTabCount").textContent = papers.filter(p => p.status !== "Publicado").length;
+  $("#publishedTabCount").textContent = papers.filter(p => p.status === "Publicado").length;
   $("#statTotal").textContent = papers.length;
   $("#statDraft").textContent = papers.filter(p => p.status === "Borrador").length;
   $("#statPreparing").textContent = papers.filter(p => p.status === "En preparación").length;
   $("#statSubmitted").textContent = papers.filter(p => p.status === "Enviado").length;
   $("#statReview").textContent = papers.filter(p => p.status === "En revisión").length;
   $("#statPublished").textContent = papers.filter(p => p.status === "Publicado").length;
+}
+
+function setLibraryTab(tab) {
+  currentLibraryTab = tab;
+  document.querySelectorAll("[data-library-tab]").forEach(button => {
+    const selected = button.dataset.libraryTab === tab;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", String(selected));
+  });
+  const published = tab === "published";
+  $("#statusFilterField").hidden = published;
+  $("#sortFilterField").hidden = published;
+  $("#libraryFilters").classList.toggle("published", published);
+  elements.statusFilter.value = "";
+  render();
 }
 
 function openForm(paper = null) {
@@ -271,6 +314,7 @@ function selectPdf(paper, button) {
 }
 
 [$("#newPaperButton"), $("#emptyAddButton")].forEach(button => button.addEventListener("click", () => openForm()));
+document.querySelectorAll("[data-library-tab]").forEach(button => button.addEventListener("click", () => setLibraryTab(button.dataset.libraryTab)));
 $("#status").addEventListener("change", syncQuartileField);
 [$("#closeDialogButton"), $("#cancelButton")].forEach(button => button.addEventListener("click", closeForm));
 [elements.search, elements.statusFilter, elements.sort].forEach(control => control.addEventListener("input", render));
@@ -288,5 +332,5 @@ $("#importInput").addEventListener("change", async event => {
   event.target.value = "";
 });
 
-STATUSES.forEach(status => elements.statusFilter.insertAdjacentHTML("beforeend", `<option>${status}</option>`));
+STATUSES.filter(status => status !== "Publicado").forEach(status => elements.statusFilter.insertAdjacentHTML("beforeend", `<option>${status}</option>`));
 render(); start();

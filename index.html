@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
   <title>Papers CHVN</title>
-  <link rel="stylesheet" href="styles.css?v=20260821-18">
+  <link rel="stylesheet" href="styles.css?v=20260821-19">
 </head>
 <body class="app-locked">
   <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
@@ -52,18 +52,23 @@
         <p id="resultsCount" class="results-count">0 registros</p>
       </div>
 
-      <div class="filters">
+      <nav class="library-tabs" role="tablist" aria-label="Secciones de la biblioteca">
+        <button class="library-tab active" type="button" role="tab" aria-selected="true" data-library-tab="working">En proceso <span id="workingTabCount">0</span></button>
+        <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="published">Publicados <span id="publishedTabCount">0</span></button>
+      </nav>
+
+      <div class="filters" id="libraryFilters">
         <label class="search-field">
           <span class="sr-only">Buscar</span>
           <input id="searchInput" type="search" placeholder="Buscar por título, revista o coautor…">
         </label>
-        <label>
+        <label id="statusFilterField">
           <span class="sr-only">Filtrar por estado</span>
           <select id="statusFilter">
             <option value="">Todos los estados</option>
           </select>
         </label>
-        <label>
+        <label id="sortFilterField">
           <span class="sr-only">Ordenar</span>
           <select id="sortFilter">
             <option value="updated-desc">Actualización reciente</option>
@@ -76,8 +81,8 @@
       <div id="paperList" class="paper-list" aria-live="polite"></div>
       <div id="emptyState" class="empty-state" hidden>
         <span>✦</span>
-        <h3>Aquí comienza tu archivo</h3>
-        <p>Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.</p>
+        <h3 id="emptyTitle">Aquí comienza tu archivo</h3>
+        <p id="emptyMessage">Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.</p>
         <button class="button button-primary" id="emptyAddButton" type="button">Registrar un paper</button>
       </div>
     </section>
@@ -147,6 +152,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260821-18"></script>
+  <script src="app.js?v=20260821-19"></script>
 </body>
 </html>
