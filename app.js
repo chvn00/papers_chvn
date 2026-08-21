@@ -99,7 +99,7 @@ function paperCardHTML(paper) {
 
 function thesisCardHTML(thesis) {
   const link = safeURL(thesis.link);
-  return `<article class="paper-card thesis-card" data-thesis-id="${thesis.id}"><div class="paper-card-main"><span class="badge thesis-badge">Tesis</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>Grado</strong>${escapeHTML(thesis.degree)}</span></div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><span></span><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
+  return `<article class="paper-card thesis-card ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}><div class="paper-card-main"><span class="badge thesis-badge">Tesis</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>Grado</strong>${escapeHTML(thesis.degree)}</span></div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
 }
 
 function render() {
@@ -212,7 +212,7 @@ elements.thesisForm.addEventListener("submit", async event => {
   const thesis = { title: $("#thesisTitle").value.trim(), university: $("#thesisUniversity").value.trim(), degree: $("#thesisDegree").value.trim(), link: $("#thesisLink").value.trim() };
   try {
     const saved = await request(id ? `/api/theses/${id}` : "/api/theses", { method: id ? "PUT" : "POST", body: JSON.stringify(thesis) });
-    if (id) theses = theses.map(item => item.id === id ? saved : item); else theses.unshift(saved);
+    if (id) theses = theses.map(item => item.id === id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item); else theses.unshift(saved);
     render(); closeThesisForm(); showToast(id ? "Tesis actualizada en PostgreSQL" : "Tesis guardada en PostgreSQL");
   } catch (error) { alert(error.message); }
 });
@@ -220,12 +220,16 @@ elements.thesisForm.addEventListener("submit", async event => {
 elements.list.addEventListener("click", async event => {
   const editThesisId = event.target.closest("[data-edit-thesis]")?.dataset.editThesis;
   const deleteThesisId = event.target.closest("[data-delete-thesis]")?.dataset.deleteThesis;
+  const uploadThesisPdfId = event.target.closest("[data-upload-thesis-pdf]")?.dataset.uploadThesisPdf;
+  const previewThesisPdfId = event.target.closest("[data-preview-thesis-pdf]")?.dataset.previewThesisPdf;
   const editId = event.target.closest("[data-edit]")?.dataset.edit;
   const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
   const uploadId = event.target.closest("[data-upload-pdf]")?.dataset.uploadPdf;
   const previewId = event.target.closest("[data-preview-pdf]")?.dataset.previewPdf;
   const publicationLinkId = event.target.closest("[data-publication-link]")?.dataset.publicationLink;
   if (editThesisId) openThesisForm(theses.find(thesis => thesis.id === editThesisId));
+  if (uploadThesisPdfId) selectPdf(theses.find(thesis => thesis.id === uploadThesisPdfId), event.target.closest("[data-upload-thesis-pdf]"), "theses");
+  if (previewThesisPdfId) openPdfPreview(theses.find(thesis => thesis.id === previewThesisPdfId), "theses");
   if (deleteThesisId) {
     const thesis = theses.find(item => item.id === deleteThesisId);
     if (confirm(`¿Eliminar la tesis “${thesis.title}”? Esta acción no se puede deshacer.`)) {
@@ -246,9 +250,14 @@ elements.list.addEventListener("click", async event => {
   }
   if (!event.target.closest("button, a")) {
     const paperId = event.target.closest("[data-paper-id]")?.dataset.paperId;
+    const thesisId = event.target.closest("[data-thesis-id]")?.dataset.thesisId;
     if (paperId) {
       const paper = papers.find(item => item.id === paperId);
       if (paper.hasPdf) openPdfPreview(paper); else showToast("Carga un PDF para previsualizarlo");
+    }
+    if (thesisId) {
+      const thesis = theses.find(item => item.id === thesisId);
+      if (thesis.hasPdf) openPdfPreview(thesis, "theses"); else showToast("Carga un PDF para previsualizarlo");
     }
   }
 });
@@ -277,8 +286,11 @@ async function editPublicationLink(paper) {
 elements.list.addEventListener("keydown", event => {
   if (!["Enter", " "].includes(event.key) || event.target.closest("button, a")) return;
   const paperId = event.target.closest("[data-paper-id]")?.dataset.paperId;
+  const thesisId = event.target.closest("[data-thesis-id]")?.dataset.thesisId;
   const paper = papers.find(item => item.id === paperId);
+  const thesis = theses.find(item => item.id === thesisId);
   if (paper?.hasPdf) { event.preventDefault(); openPdfPreview(paper); }
+  if (thesis?.hasPdf) { event.preventDefault(); openPdfPreview(thesis, "theses"); }
 });
 
 async function renderMobilePdf(url) {
@@ -320,10 +332,10 @@ async function renderMobilePdf(url) {
   }
 }
 
-function openPdfPreview(paper) {
-  const url = `/api/papers/${paper.id}/pdf`;
+function openPdfPreview(item, resource = "papers") {
+  const url = `/api/${resource}/${item.id}/pdf`;
   const mobilePreview = window.matchMedia("(max-width: 560px)").matches;
-  $("#pdfPreviewTitle").textContent = paper.title;
+  $("#pdfPreviewTitle").textContent = item.title;
   $("#openPdfNew").href = url;
   $("#openPdfMobile").href = url;
   elements.pdfDialog.showModal();
@@ -349,7 +361,7 @@ $("#closePdfButton").addEventListener("click", closePdfPreview);
 elements.pdfDialog.addEventListener("click", event => { if (event.target === elements.pdfDialog) closePdfPreview(); });
 elements.pdfDialog.addEventListener("close", resetPdfPreview);
 
-function selectPdf(paper, button) {
+function selectPdf(item, button, resource = "papers") {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "application/pdf,.pdf";
@@ -358,17 +370,18 @@ function selectPdf(paper, button) {
     if (!file) return;
     if (file.type && file.type !== "application/pdf") return alert("Selecciona un archivo PDF válido.");
     if (file.size > 25 * 1024 * 1024) return alert("El PDF no puede superar 25 MB.");
-    if (paper.hasPdf && !confirm(`Este paper ya tiene “${paper.pdfName}”. ¿Quieres reemplazarlo?`)) return;
+    if (item.hasPdf && !confirm(`Este documento ya tiene “${item.pdfName}”. ¿Quieres reemplazarlo?`)) return;
     const originalText = button.textContent;
     button.disabled = true;
     button.textContent = "Cargando…";
     try {
-      const response = await fetch(`/api/papers/${paper.id}/pdf`, { method: "POST", headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent(file.name) }, body: file });
+      const response = await fetch(`/api/${resource}/${item.id}/pdf`, { method: "POST", headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent(file.name) }, body: file });
       const result = await response.json().catch(() => ({}));
       if (response.status === 401) { showLogin(); throw new Error("Sesión requerida"); }
       if (!response.ok) throw new Error(result.error || "No fue posible cargar el PDF");
-      papers = papers.map(item => item.id === paper.id ? { ...item, ...result } : item);
-      saveLocalMirror(); render(); showToast("PDF guardado en PostgreSQL");
+      if (resource === "theses") theses = theses.map(thesis => thesis.id === item.id ? { ...thesis, ...result } : thesis);
+      else { papers = papers.map(paper => paper.id === item.id ? { ...paper, ...result } : paper); saveLocalMirror(); }
+      render(); showToast("PDF guardado en PostgreSQL");
     } catch (error) { alert(error.message); button.disabled = false; button.textContent = originalText; }
   });
   input.click();

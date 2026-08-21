@@ -145,7 +145,7 @@ function normalizeThesis(input = {}) {
 
 function thesisFromRow(row) {
   const iso = value => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-  return { id: row.id, title: row.title, university: row.university, degree: row.degree, link: row.link || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) };
+  return { id: row.id, title: row.title, university: row.university, degree: row.degree, link: row.link || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at), hasPdf: Boolean(row.has_pdf), pdfName: row.pdf_name || "", pdfSize: Number(row.pdf_size || 0) };
 }
 
 const thesisUpsertSql = `INSERT INTO theses (id, title, university, degree, link, created_at, updated_at)
@@ -199,7 +199,8 @@ async function api(request, response, pathname) {
   }
 
   if (pathname === "/api/theses" && request.method === "GET") {
-    const result = await pool.query("SELECT * FROM theses ORDER BY updated_at DESC");
+    const result = await pool.query(`SELECT t.*, (f.thesis_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
+      FROM theses t LEFT JOIN thesis_pdfs f ON f.thesis_id = t.id ORDER BY t.updated_at DESC`);
     return json(response, 200, result.rows.map(thesisFromRow));
   }
 
@@ -221,6 +222,36 @@ async function api(request, response, pathname) {
   if (thesisMatch && request.method === "DELETE") {
     await pool.query("DELETE FROM theses WHERE id=$1", [thesisMatch[1]]);
     return json(response, 200, { deleted: true });
+  }
+
+  const thesisPdfMatch = pathname.match(/^\/api\/theses\/([a-zA-Z0-9-]+)\/pdf$/);
+  if (thesisPdfMatch && request.method === "POST") {
+    if (!(request.headers["content-type"] || "").toLowerCase().startsWith("application/pdf")) return json(response, 415, { error: "Selecciona un archivo PDF válido" });
+    const content = await readRawBody(request, MAX_PDF_SIZE);
+    if (content.length < 5 || content.subarray(0, 5).toString("ascii") !== "%PDF-") return json(response, 400, { error: "El archivo no contiene un PDF válido" });
+    const filename = safeFilename(request.headers["x-file-name"]);
+    const result = await pool.query(`INSERT INTO thesis_pdfs (thesis_id, filename, mime_type, size_bytes, content, uploaded_at)
+      SELECT id, $2, 'application/pdf', $3, $4, NOW() FROM theses WHERE id=$1
+      ON CONFLICT (thesis_id) DO UPDATE SET filename=EXCLUDED.filename, mime_type=EXCLUDED.mime_type,
+      size_bytes=EXCLUDED.size_bytes, content=EXCLUDED.content, uploaded_at=NOW()
+      RETURNING filename, size_bytes, uploaded_at`, [thesisPdfMatch[1], filename, content.length, content]);
+    if (!result.rowCount) return json(response, 404, { error: "Tesis no encontrada" });
+    return json(response, 201, { hasPdf: true, pdfName: result.rows[0].filename, pdfSize: Number(result.rows[0].size_bytes) });
+  }
+
+  if (thesisPdfMatch && request.method === "GET") {
+    const result = await pool.query("SELECT filename, mime_type, size_bytes, content FROM thesis_pdfs WHERE thesis_id=$1", [thesisPdfMatch[1]]);
+    if (!result.rowCount) return json(response, 404, { error: "Esta tesis no tiene un PDF cargado" });
+    const file = result.rows[0];
+    response.writeHead(200, {
+      "Content-Type": file.mime_type,
+      "Content-Length": file.size_bytes,
+      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff"
+    });
+    response.end(file.content);
+    return;
   }
 
   const pdfMatch = pathname.match(/^\/api\/papers\/([a-zA-Z0-9-]+)\/pdf$/);
@@ -287,7 +318,8 @@ async function api(request, response, pathname) {
       await client.query("COMMIT");
       const paperResult = await client.query(`SELECT p.*, (f.paper_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
         FROM papers p LEFT JOIN paper_pdfs f ON f.paper_id = p.id ORDER BY p.updated_at DESC`);
-      const thesisResult = await client.query("SELECT * FROM theses ORDER BY updated_at DESC");
+      const thesisResult = await client.query(`SELECT t.*, (f.thesis_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
+        FROM theses t LEFT JOIN thesis_pdfs f ON f.thesis_id = t.id ORDER BY t.updated_at DESC`);
       return json(response, 200, { papers: paperResult.rows.map(fromRow), theses: thesisResult.rows.map(thesisFromRow) });
     } catch (error) {
       await client.query("ROLLBACK");
@@ -327,6 +359,11 @@ async function initialize() {
   await pool.query("CREATE INDEX IF NOT EXISTS theses_updated_at_idx ON theses (updated_at DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS paper_pdfs (
     paper_id UUID PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'application/pdf', size_bytes INTEGER NOT NULL,
+    content BYTEA NOT NULL, uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS thesis_pdfs (
+    thesis_id UUID PRIMARY KEY REFERENCES theses(id) ON DELETE CASCADE,
     filename TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'application/pdf', size_bytes INTEGER NOT NULL,
     content BYTEA NOT NULL, uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
