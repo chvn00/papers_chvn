@@ -72,7 +72,8 @@ function render() {
     const link = safeURL(paper.link);
     const published = paper.status === "Publicado";
     const medal = published ? `<div class="quartile-medal" aria-label="Cuartil ${escapeHTML(paper.quartile || "sin registrar")}" title="Publicación ${escapeHTML(paper.quartile || "sin cuartil")}"><span>${escapeHTML(paper.quartile || "Q?")}</span></div>` : "";
-    return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="card-footer"><div class="paper-resources">${link ? `<a class="paper-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Enlace ↗</a>` : ""}${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
+    const publicationControl = link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Ver publicación ↗</a><button class="publication-link-edit" type="button" data-publication-link="${paper.id}" aria-label="Cambiar enlace publicado" title="Cambiar enlace">✎</button>` : `<button class="publication-link-add" type="button" data-publication-link="${paper.id}">＋ Cargar enlace publicado</button>`;
+    return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div><div class="card-footer"><div class="paper-resources">${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
   }).join("");
   elements.empty.hidden = visible.length > 0;
   elements.list.hidden = visible.length === 0;
@@ -127,9 +128,11 @@ elements.list.addEventListener("click", async event => {
   const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
   const uploadId = event.target.closest("[data-upload-pdf]")?.dataset.uploadPdf;
   const previewId = event.target.closest("[data-preview-pdf]")?.dataset.previewPdf;
+  const publicationLinkId = event.target.closest("[data-publication-link]")?.dataset.publicationLink;
   if (editId) openForm(papers.find(p => p.id === editId));
   if (uploadId) selectPdf(papers.find(p => p.id === uploadId), event.target.closest("[data-upload-pdf]"));
   if (previewId) openPdfPreview(papers.find(p => p.id === previewId));
+  if (publicationLinkId) editPublicationLink(papers.find(p => p.id === publicationLinkId));
   if (deleteId) {
     const paper = papers.find(p => p.id === deleteId);
     if (confirm(`¿Eliminar “${paper.title}”? Esta acción no se puede deshacer.`)) {
@@ -145,6 +148,27 @@ elements.list.addEventListener("click", async event => {
     }
   }
 });
+
+async function editPublicationLink(paper) {
+  if (paper.status === "Publicado" && !paper.quartile) {
+    openForm(paper);
+    showToast("Selecciona primero el cuartil y agrega el enlace");
+    setTimeout(() => $("#quartile").focus(), 80);
+    return;
+  }
+  const value = prompt("Pega el enlace donde está publicado el paper. Déjalo vacío para quitarlo.", paper.link || "");
+  if (value === null) return;
+  const link = value.trim();
+  if (link && !safeURL(link)) return alert("Ingresa un enlace válido que comience por http:// o https://");
+  if (!link && paper.link && !confirm("¿Quieres quitar el enlace publicado de esta card?")) return;
+  try {
+    const saved = await request(`/api/papers/${paper.id}`, { method: "PUT", body: JSON.stringify({ ...paper, link }) });
+    papers = papers.map(item => item.id === paper.id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item);
+    saveLocalMirror();
+    render();
+    showToast(link ? "Enlace publicado guardado" : "Enlace publicado eliminado");
+  } catch (error) { alert(error.message); }
+}
 
 elements.list.addEventListener("keydown", event => {
   if (!["Enter", " "].includes(event.key) || event.target.closest("button, a")) return;
