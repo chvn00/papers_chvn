@@ -230,8 +230,9 @@ dialog form { padding: 30px; }
   .pdf-viewer-head { min-height: 62px; padding: 8px 9px 8px 12px; }
   .pdf-viewer-head .eyebrow { margin-bottom: 3px; font-size: 8px; }
   .pdf-viewer-head h2 { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; font-size: 14px; line-height: 1.15; }
-  .pdf-viewer-actions .button { min-height: 34px; padding-inline: 8px; font-size: 0; }
-  .pdf-viewer-actions .button::before { content: "Abrir ↗"; font-size: 10px; }
+  .pdf-viewer-actions .button { min-height: 34px; padding-inline: 6px; font-size: 0; }
+  .pdf-viewer-actions .pdf-open-external::before { content: "Abrir ↗"; font-size: 10px; }
+  .pdf-viewer-actions .pdf-download::before { content: "Descargar ↓"; font-size: 10px; }
   .pdf-viewer-actions .icon-button { width: 34px; height: 34px; flex-basis: 34px; }
   .pdf-mobile-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; color: #49657a; background: #fff; border-top: 1px solid #d4e0e8; font-size: 10px; }
   .pdf-mobile-bar span { max-width: 54%; line-height: 1.25; }

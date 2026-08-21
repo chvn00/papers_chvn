@@ -337,6 +337,8 @@ function openPdfPreview(item, resource = "papers") {
   const mobilePreview = window.matchMedia("(max-width: 560px)").matches;
   $("#pdfPreviewTitle").textContent = item.title;
   $("#openPdfNew").href = url;
+  $("#downloadPdf").href = `${url}?download=1`;
+  $("#downloadPdf").download = (item.pdfName || `${item.title}.pdf`).replace(/[\\/]/g, "-");
   $("#openPdfMobile").href = url;
   elements.pdfDialog.showModal();
   elements.pdfFrame.hidden = mobilePreview;

@@ -246,7 +246,7 @@ async function api(request, response, pathname) {
     response.writeHead(200, {
       "Content-Type": file.mime_type,
       "Content-Length": file.size_bytes,
-      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      "Content-Disposition": `${new URL(request.url, "http://localhost").searchParams.get("download") === "1" ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff"
     });
@@ -276,7 +276,7 @@ async function api(request, response, pathname) {
     response.writeHead(200, {
       "Content-Type": file.mime_type,
       "Content-Length": file.size_bytes,
-      "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      "Content-Disposition": `${new URL(request.url, "http://localhost").searchParams.get("download") === "1" ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff"
     });
