@@ -131,6 +131,32 @@ function paperValues(paper) {
   return [paper.id, paper.title, paper.journal, paper.status, paper.quartile || null, paper.coauthors, paper.affiliation, paper.submittedAt, paper.link, paper.notes, paper.createdAt, paper.updatedAt];
 }
 
+function normalizeThesis(input = {}) {
+  const text = key => String(input[key] || "").trim();
+  const title = text("title");
+  const university = text("university");
+  const degree = text("degree");
+  if (!title || !university || !degree) throw new Error("Título, universidad y grado son obligatorios");
+  return {
+    id: text("id") || crypto.randomUUID(), title, university, degree, link: text("link"),
+    createdAt: text("createdAt") || new Date().toISOString(), updatedAt: new Date().toISOString()
+  };
+}
+
+function thesisFromRow(row) {
+  const iso = value => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  return { id: row.id, title: row.title, university: row.university, degree: row.degree, link: row.link || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) };
+}
+
+const thesisUpsertSql = `INSERT INTO theses (id, title, university, degree, link, created_at, updated_at)
+  VALUES ($1,$2,$3,$4,$5,$6,$7)
+  ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, university=EXCLUDED.university,
+  degree=EXCLUDED.degree, link=EXCLUDED.link, updated_at=EXCLUDED.updated_at RETURNING *`;
+
+function thesisValues(thesis) {
+  return [thesis.id, thesis.title, thesis.university, thesis.degree, thesis.link, thesis.createdAt, thesis.updatedAt];
+}
+
 async function api(request, response, pathname) {
   if (!sameOrigin(request)) return json(response, 403, { error: "Origen no permitido" });
 
@@ -170,6 +196,31 @@ async function api(request, response, pathname) {
     const paper = normalizePaper(await readBody(request));
     const result = await pool.query(upsertSql, paperValues(paper));
     return json(response, 201, fromRow(result.rows[0]));
+  }
+
+  if (pathname === "/api/theses" && request.method === "GET") {
+    const result = await pool.query("SELECT * FROM theses ORDER BY updated_at DESC");
+    return json(response, 200, result.rows.map(thesisFromRow));
+  }
+
+  if (pathname === "/api/theses" && request.method === "POST") {
+    const thesis = normalizeThesis(await readBody(request));
+    const result = await pool.query(thesisUpsertSql, thesisValues(thesis));
+    return json(response, 201, thesisFromRow(result.rows[0]));
+  }
+
+  const thesisMatch = pathname.match(/^\/api\/theses\/([a-zA-Z0-9-]+)$/);
+  if (thesisMatch && request.method === "PUT") {
+    const current = await pool.query("SELECT created_at FROM theses WHERE id=$1", [thesisMatch[1]]);
+    if (!current.rowCount) return json(response, 404, { error: "Tesis no encontrada" });
+    const thesis = normalizeThesis({ ...(await readBody(request)), id: thesisMatch[1], createdAt: current.rows[0].created_at.toISOString() });
+    const result = await pool.query(thesisUpsertSql, thesisValues(thesis));
+    return json(response, 200, thesisFromRow(result.rows[0]));
+  }
+
+  if (thesisMatch && request.method === "DELETE") {
+    await pool.query("DELETE FROM theses WHERE id=$1", [thesisMatch[1]]);
+    return json(response, 200, { deleted: true });
   }
 
   const pdfMatch = pathname.match(/^\/api\/papers\/([a-zA-Z0-9-]+)\/pdf$/);
@@ -219,18 +270,25 @@ async function api(request, response, pathname) {
   if (pathname === "/api/import" && request.method === "POST") {
     const body = await readBody(request);
     if (!Array.isArray(body.papers) || body.papers.length > 2000) return json(response, 400, { error: "Respaldo inválido" });
+    if (body.theses !== undefined && (!Array.isArray(body.theses) || body.theses.length > 2000)) return json(response, 400, { error: "Respaldo de tesis inválido" });
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       if (body.replace) await client.query("DELETE FROM papers");
+      if (body.replace && Array.isArray(body.theses)) await client.query("DELETE FROM theses");
       for (const input of body.papers) {
         const paper = normalizePaper(input);
         await client.query(upsertSql, paperValues(paper));
       }
+      for (const input of body.theses || []) {
+        const thesis = normalizeThesis(input);
+        await client.query(thesisUpsertSql, thesisValues(thesis));
+      }
       await client.query("COMMIT");
-      const result = await client.query(`SELECT p.*, (f.paper_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
+      const paperResult = await client.query(`SELECT p.*, (f.paper_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
         FROM papers p LEFT JOIN paper_pdfs f ON f.paper_id = p.id ORDER BY p.updated_at DESC`);
-      return json(response, 200, result.rows.map(fromRow));
+      const thesisResult = await client.query("SELECT * FROM theses ORDER BY updated_at DESC");
+      return json(response, 200, { papers: paperResult.rows.map(fromRow), theses: thesisResult.rows.map(thesisFromRow) });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -262,6 +320,11 @@ async function initialize() {
   )`);
   await pool.query("ALTER TABLE papers ADD COLUMN IF NOT EXISTS quartile TEXT");
   await pool.query("CREATE INDEX IF NOT EXISTS papers_updated_at_idx ON papers (updated_at DESC)");
+  await pool.query(`CREATE TABLE IF NOT EXISTS theses (
+    id UUID PRIMARY KEY, title TEXT NOT NULL, university TEXT NOT NULL, degree TEXT NOT NULL, link TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query("CREATE INDEX IF NOT EXISTS theses_updated_at_idx ON theses (updated_at DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS paper_pdfs (
     paper_id UUID PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,
     filename TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'application/pdf', size_bytes INTEGER NOT NULL,

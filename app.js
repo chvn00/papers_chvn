@@ -4,8 +4,9 @@ const ACTIVE = new Set(["Enviado", "En revisión", "Revisión solicitada", "Reen
 const SUCCESS = new Set(["Aceptado", "Publicado"]);
 const FINAL = new Set(["Aceptado", "Publicado", "Rechazado", "Retirado"]);
 const $ = selector => document.querySelector(selector);
-const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
+const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), thesisDialog: $("#thesisDialog"), thesisForm: $("#thesisForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
 let papers = loadLocalPapers();
+let theses = [];
 let currentLibraryTab = "working";
 let pdfJsPromise;
 let activePdfDocument;
@@ -39,12 +40,15 @@ function showApp() {
 
 async function loadDatabase() {
   const localBackup = loadLocalPapers();
-  let remote = await request("/api/papers");
+  let [remote, remoteTheses] = await Promise.all([request("/api/papers"), request("/api/theses")]);
   if (!remote.length && localBackup.length) {
-    remote = await request("/api/import", { method: "POST", body: JSON.stringify({ papers: localBackup, replace: false }) });
+    const migration = await request("/api/import", { method: "POST", body: JSON.stringify({ papers: localBackup, replace: false }) });
+    remote = Array.isArray(migration) ? migration : migration.papers;
+    if (!Array.isArray(migration) && Array.isArray(migration.theses)) remoteTheses = migration.theses;
     showToast(`${localBackup.length} registros migrados a PostgreSQL`);
   }
   papers = remote;
+  theses = remoteTheses;
   saveLocalMirror();
   render();
 }
@@ -79,6 +83,12 @@ function publicationYear(paper) {
   return String(datedValue).match(/^\d{4}/)?.[0] || "Sin año";
 }
 
+function filteredTheses() {
+  const query = elements.search.value.trim().toLocaleLowerCase("es");
+  return theses.filter(thesis => !query || [thesis.title, thesis.university, thesis.degree].join(" ").toLocaleLowerCase("es").includes(query))
+    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+}
+
 function paperCardHTML(paper) {
   const link = safeURL(paper.link);
   const published = paper.status === "Publicado";
@@ -87,9 +97,16 @@ function paperCardHTML(paper) {
   return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div><div class="card-footer"><div class="paper-resources">${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
 }
 
+function thesisCardHTML(thesis) {
+  const link = safeURL(thesis.link);
+  return `<article class="paper-card thesis-card" data-thesis-id="${thesis.id}"><div class="paper-card-main"><span class="badge thesis-badge">Tesis</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>Grado</strong>${escapeHTML(thesis.degree)}</span></div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><span></span><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
+}
+
 function render() {
-  const visible = filteredPapers();
-  if (currentLibraryTab === "published") {
+  const viewingTheses = currentLibraryTab === "theses";
+  const visible = viewingTheses ? filteredTheses() : filteredPapers();
+  if (viewingTheses) elements.list.innerHTML = visible.map(thesisCardHTML).join("");
+  else if (currentLibraryTab === "published") {
     let activeYear = "";
     elements.list.innerHTML = visible.map(paper => {
       const year = publicationYear(paper);
@@ -100,12 +117,14 @@ function render() {
   } else elements.list.innerHTML = visible.map(paperCardHTML).join("");
   elements.empty.hidden = visible.length > 0;
   elements.list.hidden = visible.length === 0;
-  $("#emptyTitle").textContent = currentLibraryTab === "published" ? "Aún no hay papers publicados" : "Aquí comienza tu archivo";
-  $("#emptyMessage").textContent = currentLibraryTab === "published" ? "Cuando un paper cambie a Publicado aparecerá aquí, organizado por año." : "Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.";
+  $("#emptyTitle").textContent = viewingTheses ? "Aún no hay tesis registradas" : currentLibraryTab === "published" ? "Aún no hay papers publicados" : "Aquí comienza tu archivo";
+  $("#emptyMessage").textContent = viewingTheses ? "Agrega la primera tesis con su universidad, grado y enlace." : currentLibraryTab === "published" ? "Cuando un paper cambie a Publicado aparecerá aquí, organizado por año." : "Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.";
   $("#emptyAddButton").hidden = currentLibraryTab === "published";
-  $("#resultsCount").textContent = `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
+  $("#emptyAddButton").textContent = viewingTheses ? "Registrar una tesis" : "Registrar un paper";
+  $("#resultsCount").textContent = viewingTheses ? `${visible.length} ${visible.length === 1 ? "tesis" : "tesis"}` : `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
   $("#workingTabCount").textContent = papers.filter(p => p.status !== "Publicado").length;
   $("#publishedTabCount").textContent = papers.filter(p => p.status === "Publicado").length;
+  $("#thesesTabCount").textContent = theses.length;
   $("#statTotal").textContent = papers.length;
   $("#statDraft").textContent = papers.filter(p => p.status === "Borrador").length;
   $("#statPreparing").textContent = papers.filter(p => p.status === "En preparación").length;
@@ -122,10 +141,15 @@ function setLibraryTab(tab) {
     button.setAttribute("aria-selected", String(selected));
   });
   const published = tab === "published";
-  $("#statusFilterField").hidden = published;
-  $("#sortFilterField").hidden = published;
-  $("#libraryFilters").classList.toggle("published", published);
+  const simpleView = published || tab === "theses";
+  $("#statusFilterField").hidden = simpleView;
+  $("#sortFilterField").hidden = simpleView;
+  $("#libraryFilters").classList.toggle("published", simpleView);
+  $("#newPaperButton").textContent = tab === "theses" ? "+ Nueva tesis" : "+ Nuevo paper";
+  $("#libraryTitle").textContent = tab === "theses" ? "Tesis" : "Manuscritos";
+  elements.search.placeholder = tab === "theses" ? "Buscar por título, universidad o grado…" : "Buscar por título, revista o coautor…";
   elements.statusFilter.value = "";
+  elements.search.value = "";
   render();
 }
 
@@ -144,6 +168,22 @@ function syncQuartileField() {
   if (!published) $("#quartile").value = "";
 }
 function closeForm() { elements.dialog.close(); }
+function openThesisForm(thesis = null) {
+  elements.thesisForm.reset();
+  $("#thesisId").value = thesis?.id || "";
+  $("#thesisDialogEyebrow").textContent = thesis ? "Editar tesis" : "Nueva tesis";
+  $("#thesisDialogTitle").textContent = thesis ? "Actualizar tesis" : "Agregar tesis";
+  if (thesis) {
+    $("#thesisTitle").value = thesis.title || "";
+    $("#thesisUniversity").value = thesis.university || "";
+    $("#thesisDegree").value = thesis.degree || "";
+    $("#thesisLink").value = thesis.link || "";
+  }
+  elements.thesisDialog.showModal();
+  setTimeout(() => $("#thesisTitle").focus(), 50);
+}
+function closeThesisForm() { elements.thesisDialog.close(); }
+function openCurrentForm() { currentLibraryTab === "theses" ? openThesisForm() : openForm(); }
 function showToast(message) { elements.toast.textContent = message; elements.toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => elements.toast.classList.remove("show"), 2800); }
 
 elements.loginForm.addEventListener("submit", async event => {
@@ -166,12 +206,33 @@ elements.form.addEventListener("submit", async event => {
   } catch (error) { alert(error.message); }
 });
 
+elements.thesisForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const id = $("#thesisId").value;
+  const thesis = { title: $("#thesisTitle").value.trim(), university: $("#thesisUniversity").value.trim(), degree: $("#thesisDegree").value.trim(), link: $("#thesisLink").value.trim() };
+  try {
+    const saved = await request(id ? `/api/theses/${id}` : "/api/theses", { method: id ? "PUT" : "POST", body: JSON.stringify(thesis) });
+    if (id) theses = theses.map(item => item.id === id ? saved : item); else theses.unshift(saved);
+    render(); closeThesisForm(); showToast(id ? "Tesis actualizada en PostgreSQL" : "Tesis guardada en PostgreSQL");
+  } catch (error) { alert(error.message); }
+});
+
 elements.list.addEventListener("click", async event => {
+  const editThesisId = event.target.closest("[data-edit-thesis]")?.dataset.editThesis;
+  const deleteThesisId = event.target.closest("[data-delete-thesis]")?.dataset.deleteThesis;
   const editId = event.target.closest("[data-edit]")?.dataset.edit;
   const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
   const uploadId = event.target.closest("[data-upload-pdf]")?.dataset.uploadPdf;
   const previewId = event.target.closest("[data-preview-pdf]")?.dataset.previewPdf;
   const publicationLinkId = event.target.closest("[data-publication-link]")?.dataset.publicationLink;
+  if (editThesisId) openThesisForm(theses.find(thesis => thesis.id === editThesisId));
+  if (deleteThesisId) {
+    const thesis = theses.find(item => item.id === deleteThesisId);
+    if (confirm(`¿Eliminar la tesis “${thesis.title}”? Esta acción no se puede deshacer.`)) {
+      try { await request(`/api/theses/${deleteThesisId}`, { method: "DELETE" }); theses = theses.filter(item => item.id !== deleteThesisId); render(); showToast("Tesis eliminada"); }
+      catch (error) { alert(error.message); }
+    }
+  }
   if (editId) openForm(papers.find(p => p.id === editId));
   if (uploadId) selectPdf(papers.find(p => p.id === uploadId), event.target.closest("[data-upload-pdf]"));
   if (previewId) openPdfPreview(papers.find(p => p.id === previewId));
@@ -313,21 +374,26 @@ function selectPdf(paper, button) {
   input.click();
 }
 
-[$("#newPaperButton"), $("#emptyAddButton")].forEach(button => button.addEventListener("click", () => openForm()));
+[$("#newPaperButton"), $("#emptyAddButton")].forEach(button => button.addEventListener("click", openCurrentForm));
 document.querySelectorAll("[data-library-tab]").forEach(button => button.addEventListener("click", () => setLibraryTab(button.dataset.libraryTab)));
 $("#status").addEventListener("change", syncQuartileField);
 [$("#closeDialogButton"), $("#cancelButton")].forEach(button => button.addEventListener("click", closeForm));
+[$("#closeThesisDialogButton"), $("#cancelThesisButton")].forEach(button => button.addEventListener("click", closeThesisForm));
 [elements.search, elements.statusFilter, elements.sort].forEach(control => control.addEventListener("input", render));
 elements.dialog.addEventListener("click", event => { if (event.target === elements.dialog) closeForm(); });
-$("#exportButton").addEventListener("click", () => { const blob = new Blob([JSON.stringify({ version: 2, source: "PostgreSQL", exportedAt: new Date().toISOString(), papers }, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `papers-chvn-${new Date().toISOString().slice(0,10)}.json`; link.click(); URL.revokeObjectURL(link.href); showToast("Respaldo exportado"); });
+elements.thesisDialog.addEventListener("click", event => { if (event.target === elements.thesisDialog) closeThesisForm(); });
+$("#exportButton").addEventListener("click", () => { const blob = new Blob([JSON.stringify({ version: 3, source: "PostgreSQL", exportedAt: new Date().toISOString(), papers, theses }, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `papers-chvn-${new Date().toISOString().slice(0,10)}.json`; link.click(); URL.revokeObjectURL(link.href); showToast("Respaldo exportado"); });
 $("#importButton").addEventListener("click", () => $("#importInput").click());
 $("#importInput").addEventListener("change", async event => {
   const file = event.target.files[0]; if (!file) return;
   try {
     const data = JSON.parse(await file.text()); const imported = Array.isArray(data) ? data : data.papers;
     if (!Array.isArray(imported)) throw new Error("Formato inválido");
-    if (papers.length && !confirm("La importación reemplazará todos los registros de PostgreSQL. ¿Continuar?")) return;
-    papers = await request("/api/import", { method: "POST", body: JSON.stringify({ papers: imported, replace: true }) }); saveLocalMirror(); render(); showToast("Respaldo importado a PostgreSQL");
+    if ((papers.length || theses.length) && !confirm("La importación reemplazará los registros incluidos en el respaldo. ¿Continuar?")) return;
+    const result = await request("/api/import", { method: "POST", body: JSON.stringify({ papers: imported, theses: Array.isArray(data.theses) ? data.theses : undefined, replace: true }) });
+    papers = Array.isArray(result) ? result : result.papers;
+    if (!Array.isArray(result) && Array.isArray(result.theses)) theses = result.theses;
+    saveLocalMirror(); render(); showToast("Respaldo importado a PostgreSQL");
   } catch (error) { alert(error.message || "No fue posible importar el respaldo"); }
   event.target.value = "";
 });

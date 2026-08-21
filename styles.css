@@ -101,6 +101,13 @@ h1 em { color: var(--green); font-weight: 400; }
 .badge { display: inline-flex; padding: 4px 7px; color: #83ddb3; background: var(--green-soft); border: 1px solid rgba(59,165,121,.25); border-radius: 2px; font-size: 8px; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; }
 .badge.accepted { color: #b4e9c9; background: rgba(59,165,121,.2); }
 .badge.rejected { color: #ffaaa0; background: rgba(239,142,131,.12); border-color: rgba(239,142,131,.25); }
+.thesis-badge { color: #ffe4a1; background: rgba(211,171,95,.15); border-color: rgba(240,204,122,.35); }
+.thesis-card { border-top-color: var(--gold); }
+.thesis-meta { grid-template-columns: 1fr; }
+.thesis-meta span { white-space: normal; }
+.thesis-link-row { margin-top: auto; }
+.thesis-no-link { color: #9ab8cc; font-size: 9px; font-style: italic; }
+.thesis-footer { min-height: 35px; }
 .publication-row { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 12px; position: relative; z-index: 1; }
 .publication-row > strong { color: var(--gold); font-size: 8px; letter-spacing: .12em; }
 .publication-row > div { min-width: 0; display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
