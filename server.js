@@ -136,25 +136,27 @@ function normalizeThesis(input = {}) {
   const title = text("title");
   const university = text("university");
   const degree = text("degree");
+  const category = text("category") === "Dirigida" ? "Dirigida" : "Propia";
   if (!title || !university || !degree) throw new Error("Título, universidad y grado son obligatorios");
+  if (category === "Dirigida" && !["Maestría", "Doctorado"].includes(degree)) throw new Error("Selecciona Maestría o Doctorado");
   return {
-    id: text("id") || crypto.randomUUID(), title, university, degree, link: text("link"),
+    id: text("id") || crypto.randomUUID(), title, university, degree, category, link: text("link"),
     createdAt: text("createdAt") || new Date().toISOString(), updatedAt: new Date().toISOString()
   };
 }
 
 function thesisFromRow(row) {
   const iso = value => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-  return { id: row.id, title: row.title, university: row.university, degree: row.degree, link: row.link || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at), hasPdf: Boolean(row.has_pdf), pdfName: row.pdf_name || "", pdfSize: Number(row.pdf_size || 0) };
+  return { id: row.id, title: row.title, university: row.university, degree: row.degree, category: row.category || "Propia", link: row.link || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at), hasPdf: Boolean(row.has_pdf), pdfName: row.pdf_name || "", pdfSize: Number(row.pdf_size || 0) };
 }
 
-const thesisUpsertSql = `INSERT INTO theses (id, title, university, degree, link, created_at, updated_at)
-  VALUES ($1,$2,$3,$4,$5,$6,$7)
+const thesisUpsertSql = `INSERT INTO theses (id, title, university, degree, category, link, created_at, updated_at)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
   ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, university=EXCLUDED.university,
-  degree=EXCLUDED.degree, link=EXCLUDED.link, updated_at=EXCLUDED.updated_at RETURNING *`;
+  degree=EXCLUDED.degree, category=EXCLUDED.category, link=EXCLUDED.link, updated_at=EXCLUDED.updated_at RETURNING *`;
 
 function thesisValues(thesis) {
-  return [thesis.id, thesis.title, thesis.university, thesis.degree, thesis.link, thesis.createdAt, thesis.updatedAt];
+  return [thesis.id, thesis.title, thesis.university, thesis.degree, thesis.category, thesis.link, thesis.createdAt, thesis.updatedAt];
 }
 
 async function api(request, response, pathname) {
@@ -354,9 +356,10 @@ async function initialize() {
   await pool.query("ALTER TABLE papers ADD COLUMN IF NOT EXISTS citation TEXT");
   await pool.query("CREATE INDEX IF NOT EXISTS papers_updated_at_idx ON papers (updated_at DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS theses (
-    id UUID PRIMARY KEY, title TEXT NOT NULL, university TEXT NOT NULL, degree TEXT NOT NULL, link TEXT,
+    id UUID PRIMARY KEY, title TEXT NOT NULL, university TEXT NOT NULL, degree TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Propia', link TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await pool.query("ALTER TABLE theses ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'Propia'");
   await pool.query("CREATE INDEX IF NOT EXISTS theses_updated_at_idx ON theses (updated_at DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS paper_pdfs (
     paper_id UUID PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,

@@ -109,6 +109,7 @@ h1 em { color: var(--green); font-weight: 400; }
 .badge.rejected { color: #ffaaa0; background: rgba(239,142,131,.12); border-color: rgba(239,142,131,.25); }
 .thesis-badge { color: #ffe4a1; background: rgba(211,171,95,.15); border-color: rgba(240,204,122,.35); }
 .thesis-card { border-top-color: var(--gold); }
+.directed-thesis-card { border-top-color: #8ce1bb; }
 .thesis-meta { grid-template-columns: 1fr; }
 .thesis-meta span { white-space: normal; }
 .thesis-link-row { margin-top: auto; }
@@ -221,8 +222,8 @@ dialog form { padding: 30px; }
   .section-heading h2 { font-size: 30px; }
   .section-heading .eyebrow { margin-bottom: 6px; }
   .filters { gap: 7px; margin-bottom: 12px; }
-  .library-tabs { gap: 6px; margin-bottom: 11px; padding-bottom: 8px; }
-  .library-tab { min-height: 36px; flex: 1; padding: 0 8px; font-size: 11px; }
+  .library-tabs { flex-wrap: wrap; gap: 6px; margin-bottom: 11px; padding-bottom: 8px; }
+  .library-tab { min-height: 36px; flex: 1 1 calc(50% - 3px); padding: 0 8px; font-size: 11px; }
   .quartile-stats { gap: 4px; margin-bottom: 10px; }
   .quartile-stats article { min-height: 50px; display: block; padding: 7px 3px; text-align: center; border-left-width: 1px; border-top: 2px solid #d3ab5f; }
   .quartile-stats span, .quartile-stats strong, .quartile-stats small { display: block; }

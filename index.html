@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
   <title>Papers CHVN</title>
-  <link rel="stylesheet" href="styles.css?v=20260822-24">
+  <link rel="stylesheet" href="styles.css?v=20260822-25">
 </head>
 <body class="app-locked">
   <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
@@ -56,6 +56,7 @@
         <button class="library-tab active" type="button" role="tab" aria-selected="true" data-library-tab="working">En proceso <span id="workingTabCount">0</span></button>
         <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="published">Publicados <span id="publishedTabCount">0</span></button>
         <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="theses">Tesis <span id="thesesTabCount">0</span></button>
+        <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="directed">Tesis dirigidas <span id="directedTabCount">0</span></button>
       </nav>
 
       <section class="quartile-stats" id="quartileStats" aria-label="Publicaciones por cuartil" hidden>
@@ -152,7 +153,10 @@
       <div class="form-grid">
         <label class="full">Título de la tesis <span>*</span><input id="thesisTitle" required placeholder="Título completo de la tesis"></label>
         <label>Universidad <span>*</span><input id="thesisUniversity" required placeholder="Nombre de la universidad"></label>
-        <label>Grado <span>*</span><input id="thesisDegree" required placeholder="Ej. Doctorado, Maestría, Pregrado"></label>
+        <label id="thesisDegreeField">Grado <span>*</span><input id="thesisDegree" required placeholder="Ej. Doctorado, Maestría, Pregrado"></label>
+        <label id="directedDegreeField" hidden>Nivel de la tesis dirigida <span>*</span>
+          <select id="directedDegree" disabled required><option value="Maestría">Maestría</option><option value="Doctorado">Doctorado</option></select>
+        </label>
         <label class="full">Enlace <input id="thesisLink" type="url" placeholder="https://…"></label>
       </div>
       <div class="dialog-actions">
@@ -187,6 +191,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260822-24"></script>
+  <script src="app.js?v=20260822-25"></script>
 </body>
 </html>
