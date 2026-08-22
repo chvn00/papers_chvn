@@ -167,7 +167,7 @@ function setLibraryTab(tab) {
   $("#sortFilterField").hidden = simpleView;
   $("#libraryFilters").classList.toggle("published", simpleView);
   $("#newPaperButton").textContent = tab === "directed" ? "+ Tesis dirigida" : tab === "theses" ? "+ Nueva tesis" : "+ Nuevo paper";
-  $("#libraryTitle").textContent = tab === "directed" ? "Tesis dirigidas" : tab === "theses" ? "Tesis" : "Manuscritos";
+  $("#libraryTitle").textContent = tab === "directed" ? "Tesis dirigidas" : tab === "theses" ? "Tesis CHVN" : "Manuscritos";
   elements.search.placeholder = thesisView ? "Buscar por título, universidad o grado…" : "Buscar por título, revista o coautor…";
   elements.statusFilter.value = "";
   elements.search.value = "";
