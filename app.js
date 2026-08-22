@@ -87,8 +87,8 @@ function publicationYear(paper) {
 function filteredTheses() {
   const query = elements.search.value.trim().toLocaleLowerCase("es");
   const category = currentLibraryTab === "directed" ? "Dirigida" : "Propia";
-  return theses.filter(thesis => (thesis.category || "Propia") === category && (!query || [thesis.title, thesis.university, thesis.degree].join(" ").toLocaleLowerCase("es").includes(query)))
-    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  return theses.filter(thesis => (thesis.category || "Propia") === category && (!query || [thesis.title, thesis.university, thesis.degree, thesis.year].join(" ").toLocaleLowerCase("es").includes(query)))
+    .sort((a, b) => currentLibraryTab === "directed" ? (Number(b.year) || 0) - (Number(a.year) || 0) || (b.updatedAt || "").localeCompare(a.updatedAt || "") : (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
 function paperCardHTML(paper) {
@@ -103,14 +103,23 @@ function paperCardHTML(paper) {
 function thesisCardHTML(thesis) {
   const link = safeURL(thesis.link);
   const directed = thesis.category === "Dirigida";
-  return `<article class="paper-card thesis-card ${directed ? "directed-thesis-card" : ""} ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}><div class="paper-card-main"><span class="badge thesis-badge">${directed ? "Tesis dirigida" : "Tesis"}</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>${directed ? "Nivel" : "Grado"}</strong>${escapeHTML(thesis.degree)}</span></div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
+  return `<article class="paper-card thesis-card ${directed ? "directed-thesis-card" : ""} ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}><div class="paper-card-main"><span class="badge thesis-badge">${directed ? "Tesis dirigida" : "Tesis"}</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>${directed ? "Nivel" : "Grado"}</strong>${escapeHTML(thesis.degree)}</span>${directed ? `<span><strong>Año</strong>${escapeHTML(thesis.year || "Sin año")}</span>` : ""}</div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
 }
 
 function render() {
   const viewingTheses = currentLibraryTab === "theses" || currentLibraryTab === "directed";
   const viewingDirected = currentLibraryTab === "directed";
   const visible = viewingTheses ? filteredTheses() : filteredPapers();
-  if (viewingTheses) elements.list.innerHTML = visible.map(thesisCardHTML).join("");
+  if (viewingDirected) {
+    let activeYear = "";
+    elements.list.innerHTML = visible.map(thesis => {
+      const year = String(thesis.year || "Sin año");
+      const yearCount = visible.filter(item => String(item.year || "Sin año") === year).length;
+      const heading = year !== activeYear ? `<div class="year-heading"><span>${escapeHTML(year)}</span><small>${yearCount} ${yearCount === 1 ? "tesis dirigida" : "tesis dirigidas"}</small></div>` : "";
+      activeYear = year;
+      return `${heading}${thesisCardHTML(thesis)}`;
+    }).join("");
+  } else if (viewingTheses) elements.list.innerHTML = visible.map(thesisCardHTML).join("");
   else if (currentLibraryTab === "published") {
     let activeYear = "";
     elements.list.innerHTML = visible.map(paper => {
@@ -190,6 +199,9 @@ function openThesisForm(thesis = null, directed = currentLibraryTab === "directe
   $("#thesisDegree").disabled = directed;
   $("#directedDegreeField").hidden = !directed;
   $("#directedDegree").disabled = !directed;
+  $("#directedYearField").hidden = !directed;
+  $("#directedYear").disabled = !directed;
+  if (directed) $("#directedYear").value = thesis?.year || new Date().getFullYear();
   if (thesis) {
     $("#thesisTitle").value = thesis.title || "";
     $("#thesisUniversity").value = thesis.university || "";
@@ -227,7 +239,7 @@ elements.form.addEventListener("submit", async event => {
 elements.thesisForm.addEventListener("submit", async event => {
   event.preventDefault();
   const id = $("#thesisId").value;
-  const thesis = { title: $("#thesisTitle").value.trim(), university: $("#thesisUniversity").value.trim(), degree: thesisFormCategory === "Dirigida" ? $("#directedDegree").value : $("#thesisDegree").value.trim(), category: thesisFormCategory, link: $("#thesisLink").value.trim() };
+  const thesis = { title: $("#thesisTitle").value.trim(), university: $("#thesisUniversity").value.trim(), degree: thesisFormCategory === "Dirigida" ? $("#directedDegree").value : $("#thesisDegree").value.trim(), year: thesisFormCategory === "Dirigida" ? Number($("#directedYear").value) : null, category: thesisFormCategory, link: $("#thesisLink").value.trim() };
   try {
     const saved = await request(id ? `/api/theses/${id}` : "/api/theses", { method: id ? "PUT" : "POST", body: JSON.stringify(thesis) });
     if (id) theses = theses.map(item => item.id === id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item); else theses.unshift(saved);

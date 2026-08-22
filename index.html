@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
   <title>Papers CHVN</title>
-  <link rel="stylesheet" href="styles.css?v=20260822-25">
+  <link rel="stylesheet" href="styles.css?v=20260822-26">
 </head>
 <body class="app-locked">
   <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
@@ -157,6 +157,7 @@
         <label id="directedDegreeField" hidden>Nivel de la tesis dirigida <span>*</span>
           <select id="directedDegree" disabled required><option value="Maestría">Maestría</option><option value="Doctorado">Doctorado</option></select>
         </label>
+        <label id="directedYearField" hidden>Año <span>*</span><input id="directedYear" type="number" min="1900" max="2100" inputmode="numeric" disabled required></label>
         <label class="full">Enlace <input id="thesisLink" type="url" placeholder="https://…"></label>
       </div>
       <div class="dialog-actions">
@@ -191,6 +192,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260822-25"></script>
+  <script src="app.js?v=20260822-26"></script>
 </body>
 </html>
