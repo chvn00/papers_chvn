@@ -66,7 +66,7 @@ function filteredPapers() {
   const status = elements.statusFilter.value;
   return papers.filter(paper => {
     const inCurrentTab = currentLibraryTab === "published" ? paper.status === "Publicado" : paper.status !== "Publicado";
-    return inCurrentTab && (!query || [paper.title, paper.journal, paper.coauthors, paper.notes].join(" ").toLocaleLowerCase("es").includes(query)) && (currentLibraryTab === "published" || !status || paper.status === status);
+    return inCurrentTab && (!query || [paper.title, paper.journal, paper.coauthors, paper.citation, paper.notes].join(" ").toLocaleLowerCase("es").includes(query)) && (currentLibraryTab === "published" || !status || paper.status === status);
   }).sort((a, b) => {
     if (currentLibraryTab === "published") {
       const yearDifference = (Number(publicationYear(b)) || 0) - (Number(publicationYear(a)) || 0);
@@ -94,7 +94,8 @@ function paperCardHTML(paper) {
   const published = paper.status === "Publicado";
   const medal = published ? `<div class="quartile-medal" aria-label="Cuartil ${escapeHTML(paper.quartile || "sin registrar")}" title="Publicación ${escapeHTML(paper.quartile || "sin cuartil")}"><span>${escapeHTML(paper.quartile || "Q?")}</span></div>` : "";
   const publicationControl = link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Ver publicación ↗</a><button class="publication-link-edit" type="button" data-publication-link="${paper.id}" aria-label="Cambiar enlace publicado" title="Cambiar enlace">✎</button>` : `<button class="publication-link-add" type="button" data-publication-link="${paper.id}">＋ Cargar enlace publicado</button>`;
-  return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div><div class="card-footer"><div class="paper-resources">${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
+  const citationControl = published ? `<div class="citation-row"><p title="${escapeHTML(paper.citation || "Cita no registrada")}">${escapeHTML(paper.citation || "Cita no registrada")}</p>${paper.citation ? `<button type="button" data-copy-citation="${paper.id}">Copiar cita</button>` : `<button type="button" data-add-citation="${paper.id}">Agregar cita</button>`}</div>` : "";
+  return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div>${citationControl}<div class="card-footer"><div class="paper-resources">${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
 }
 
 function thesisCardHTML(thesis) {
@@ -161,15 +162,16 @@ function openForm(paper = null) {
   elements.form.reset(); $("#paperId").value = paper?.id || "";
   $("#dialogEyebrow").textContent = paper ? "Editar registro" : "Nuevo registro";
   $("#dialogTitle").textContent = paper ? "Actualizar paper" : "Agregar paper";
-  if (paper) ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "notes"].forEach(key => $(`#${key}`).value = paper[key] || "");
+  if (paper) ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "citation", "notes"].forEach(key => $(`#${key}`).value = paper[key] || "");
   syncQuartileField();
   elements.dialog.showModal(); setTimeout(() => $("#title").focus(), 50);
 }
 function syncQuartileField() {
   const published = $("#status").value === "Publicado";
   $("#quartileField").hidden = !published;
+  $("#citationField").hidden = !published;
   $("#quartile").required = published;
-  if (!published) $("#quartile").value = "";
+  if (!published) { $("#quartile").value = ""; $("#citation").value = ""; }
 }
 function closeForm() { elements.dialog.close(); }
 function openThesisForm(thesis = null) {
@@ -202,7 +204,7 @@ $("#logoutButton").addEventListener("click", async () => { await request("/api/l
 elements.form.addEventListener("submit", async event => {
   event.preventDefault();
   const id = $("#paperId").value;
-  const paper = {}; ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "notes"].forEach(key => paper[key] = $(`#${key}`).value.trim());
+  const paper = {}; ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "citation", "notes"].forEach(key => paper[key] = $(`#${key}`).value.trim());
   try {
     const saved = await request(id ? `/api/papers/${id}` : "/api/papers", { method: id ? "PUT" : "POST", body: JSON.stringify(paper) });
     if (id) papers = papers.map(item => item.id === id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item); else papers.unshift(saved);
@@ -231,6 +233,8 @@ elements.list.addEventListener("click", async event => {
   const uploadId = event.target.closest("[data-upload-pdf]")?.dataset.uploadPdf;
   const previewId = event.target.closest("[data-preview-pdf]")?.dataset.previewPdf;
   const publicationLinkId = event.target.closest("[data-publication-link]")?.dataset.publicationLink;
+  const copyCitationId = event.target.closest("[data-copy-citation]")?.dataset.copyCitation;
+  const addCitationId = event.target.closest("[data-add-citation]")?.dataset.addCitation;
   if (editThesisId) openThesisForm(theses.find(thesis => thesis.id === editThesisId));
   if (uploadThesisPdfId) selectPdf(theses.find(thesis => thesis.id === uploadThesisPdfId), event.target.closest("[data-upload-thesis-pdf]"), "theses");
   if (previewThesisPdfId) openPdfPreview(theses.find(thesis => thesis.id === previewThesisPdfId), "theses");
@@ -245,6 +249,8 @@ elements.list.addEventListener("click", async event => {
   if (uploadId) selectPdf(papers.find(p => p.id === uploadId), event.target.closest("[data-upload-pdf]"));
   if (previewId) openPdfPreview(papers.find(p => p.id === previewId));
   if (publicationLinkId) editPublicationLink(papers.find(p => p.id === publicationLinkId));
+  if (copyCitationId) copyCitation(papers.find(p => p.id === copyCitationId));
+  if (addCitationId) { openForm(papers.find(p => p.id === addCitationId)); setTimeout(() => $("#citation").focus(), 80); }
   if (deleteId) {
     const paper = papers.find(p => p.id === deleteId);
     if (confirm(`¿Eliminar “${paper.title}”? Esta acción no se puede deshacer.`)) {
@@ -265,6 +271,23 @@ elements.list.addEventListener("click", async event => {
     }
   }
 });
+
+async function copyCitation(paper) {
+  if (!paper?.citation) return;
+  try {
+    await navigator.clipboard.writeText(paper.citation);
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = paper.citation;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+  showToast("Cita copiada al portapapeles");
+}
 
 async function editPublicationLink(paper) {
   if (paper.status === "Publicado" && !paper.quartile) {

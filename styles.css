@@ -122,6 +122,10 @@ h1 em { color: var(--green); font-weight: 400; }
 .publication-link-add { min-height: 27px; padding: 0 8px; background: rgba(59,165,121,.12); border: 1px solid rgba(91,205,153,.35); border-radius: 3px; }
 .publication-link-add:hover { color: #173b57; background: #8ce1bb; }
 .publication-link-edit { width: 25px; height: 25px; padding: 0; flex: 0 0 25px; color: var(--gold-bright); background: rgba(211,171,95,.08); border: 1px solid rgba(211,171,95,.3); border-radius: 50%; font-size: 11px; }
+.citation-row { min-height: 39px; display: flex; align-items: center; gap: 7px; margin-top: 7px; padding: 7px 0 0; position: relative; z-index: 1; border-top: 1px solid rgba(150,194,220,.18); }
+.citation-row p { min-width: 0; margin: 0; display: -webkit-box; flex: 1; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #bdd8e9; font-size: 9px; line-height: 1.3; }
+.citation-row button { min-height: 27px; padding: 0 8px; flex-shrink: 0; color: #173b57; background: #f0cc7a; border: 1px solid #ffe4a1; border-radius: 3px; font-size: 9px; font-weight: 850; }
+.citation-row button:hover { background: #ffe4a1; }
 .card-footer { min-height: 32px; display: flex; align-items: end; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 11px; position: relative; z-index: 1; border-top: 1px solid var(--line); }
 .paper-resources { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; }
 .pdf-upload { min-height: 27px; padding: 0 8px; color: #fff1c8; background: rgba(240,204,122,.08); border: 1px solid rgba(240,204,122,.42); border-radius: 3px; font-size: 9px; font-weight: 800; }
