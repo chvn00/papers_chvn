@@ -110,6 +110,9 @@ h1 em { color: var(--green); font-weight: 400; }
 .thesis-badge { color: #ffe4a1; background: rgba(211,171,95,.15); border-color: rgba(240,204,122,.35); }
 .thesis-card { border-top-color: var(--gold); }
 .directed-thesis-card { border-top-color: #8ce1bb; }
+.directed-thesis-card h3 { padding-right: 42px; }
+.degree-medal span { font-size: 10px; letter-spacing: 0; }
+.degree-medal.master-medal span { font-size: 8px; }
 .thesis-meta { grid-template-columns: 1fr; }
 .thesis-meta span { white-space: normal; }
 .thesis-link-row { margin-top: auto; }
