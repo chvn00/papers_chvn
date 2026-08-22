@@ -131,6 +131,9 @@ function render() {
   $("#statSubmitted").textContent = papers.filter(p => p.status === "Enviado").length;
   $("#statReview").textContent = papers.filter(p => p.status === "En revisión").length;
   $("#statPublished").textContent = papers.filter(p => p.status === "Publicado").length;
+  ["Q1", "Q2", "Q3", "Q4"].forEach(quartile => {
+    $(`#stat${quartile}`).textContent = papers.filter(p => p.status === "Publicado" && p.quartile === quartile).length;
+  });
 }
 
 function setLibraryTab(tab) {
@@ -142,6 +145,7 @@ function setLibraryTab(tab) {
   });
   const published = tab === "published";
   const simpleView = published || tab === "theses";
+  $("#quartileStats").hidden = !published;
   $("#statusFilterField").hidden = simpleView;
   $("#sortFilterField").hidden = simpleView;
   $("#libraryFilters").classList.toggle("published", simpleView);
