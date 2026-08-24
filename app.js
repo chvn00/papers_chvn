@@ -1,6 +1,6 @@
 const STORAGE_KEY = "papers_chvn_v1";
-const STATUSES = ["Borrador", "En preparación", "Enviado", "En revisión", "Revisión solicitada", "Reenviado", "Aceptado", "Publicado", "Rechazado", "Retirado"];
-const ACTIVE = new Set(["Enviado", "En revisión", "Revisión solicitada", "Reenviado"]);
+const STATUSES = ["Borrador", "En preparación", "Listo para envío", "Enviado", "En revisión", "Revisión solicitada", "Reenviado", "Aceptado", "Publicado", "Rechazado", "Retirado"];
+const ACTIVE = new Set(["Listo para envío", "Enviado", "En revisión", "Revisión solicitada", "Reenviado"]);
 const SUCCESS = new Set(["Aceptado", "Publicado"]);
 const FINAL = new Set(["Aceptado", "Publicado", "Rechazado", "Retirado"]);
 const $ = selector => document.querySelector(selector);
