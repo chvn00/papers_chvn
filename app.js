@@ -165,8 +165,8 @@ function renderStatistics() {
   const charts = [
     { id: "Working", title: "Papers en proceso", items: papers.filter(paper => paper.status !== "Publicado"), year: documentYear, color: "#2684d7" },
     { id: "Published", title: "Papers publicados", items: papers.filter(paper => paper.status === "Publicado"), year: publicationYear, color: "#d3ab5f" },
-    { id: "Directed", title: "Tesis dirigidas", items: theses.filter(thesis => thesis.category === "Dirigida"), year: thesis => thesis.year || "Sin año", color: "#35a578" },
-    { id: "Evaluated", title: "Tesis evaluadas", items: theses.filter(thesis => thesis.category === "Evaluada"), year: thesis => thesis.year || "Sin año", color: "#687bd6" }
+    { id: "Directed", title: "Tesis dirigidas", items: theses.filter(thesis => thesis.category === "Dirigida"), year: thesis => thesis.year || documentYear(thesis), color: "#35a578" },
+    { id: "Evaluated", title: "Tesis evaluadas", items: theses.filter(thesis => thesis.category === "Evaluada"), year: thesis => thesis.year || documentYear(thesis), color: "#687bd6" }
   ];
   charts.forEach(chart => {
     const entries = yearlyEntries(chart.items, chart.year);
