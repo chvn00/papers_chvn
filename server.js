@@ -136,7 +136,7 @@ function normalizeThesis(input = {}) {
   const title = text("title");
   const university = text("university");
   const degree = text("degree");
-  const category = text("category") === "Dirigida" ? "Dirigida" : "Propia";
+  const category = ["Dirigida", "Evaluada"].includes(text("category")) ? text("category") : "Propia";
   const year = category === "Dirigida" ? Number(text("year")) : null;
   if (!title || !university || !degree) throw new Error("Título, universidad y grado son obligatorios");
   if (category === "Dirigida" && !["Maestría", "Doctorado"].includes(degree)) throw new Error("Selecciona Maestría o Doctorado");
