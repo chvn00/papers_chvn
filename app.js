@@ -113,16 +113,35 @@ function documentYear(item) {
   return String(item.submittedAt || item.createdAt || item.updatedAt || "").match(/^\d{4}/)?.[0] || "Sin año";
 }
 
-function yearlyEntries(items, yearForItem) {
-  const counts = new Map();
-  items.forEach(item => { const year = String(yearForItem(item) || "Sin año"); counts.set(year, (counts.get(year) || 0) + 1); });
-  return [...counts].sort(([a], [b]) => a === "Sin año" ? 1 : b === "Sin año" ? -1 : Number(a) - Number(b));
+function degreeGroup(value) {
+  const degree = String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (degree.includes("doctor")) return "Doctorado";
+  if (degree.includes("maestr") || degree.includes("master") || degree.includes("magist")) return "Maestría";
+  return "Otro";
 }
 
-function drawYearChart(canvas, entries, color, title) {
+function processGroup(status) {
+  if (["En revisión", "Revisión solicitada", "Reenviado"].includes(status)) return "revision";
+  return ({ "Borrador": "draft", "En preparación": "preparing", "Listo para envío": "ready", "Enviado": "submitted" })[status] || "other";
+}
+
+function yearlyStackedEntries(items, yearForItem, groupForItem, series) {
+  const counts = new Map();
+  items.forEach(item => {
+    const year = String(yearForItem(item) || "Sin año");
+    if (!counts.has(year)) counts.set(year, Object.fromEntries(series.map(part => [part.key, 0])));
+    const group = groupForItem(item);
+    const target = counts.get(year);
+    target[group in target ? group : series.at(-1).key] += 1;
+  });
+  return [...counts].map(([year, values]) => ({ year, values, total: Object.values(values).reduce((sum, value) => sum + value, 0) }))
+    .sort((a, b) => a.year === "Sin año" ? 1 : b.year === "Sin año" ? -1 : Number(a.year) - Number(b.year));
+}
+
+function drawYearChart(canvas, entries, series, title) {
   const bounds = canvas.getBoundingClientRect();
   const width = Math.max(280, Math.round(bounds.width || 560));
-  const height = Math.max(220, Math.round(bounds.height || 270));
+  const height = Math.max(260, Math.round(bounds.height || 310));
   const scale = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = width * scale; canvas.height = height * scale;
   const context = canvas.getContext("2d");
@@ -130,15 +149,26 @@ function drawYearChart(canvas, entries, color, title) {
   context.fillStyle = "#fff"; context.fillRect(0, 0, width, height);
   context.fillStyle = "#173b57"; context.font = "700 15px Georgia, serif"; context.textAlign = "left"; context.textBaseline = "top";
   context.fillText(`${title} · documentos por año`, 18, 14);
+  const seriesTotals = Object.fromEntries(series.map(part => [part.key, entries.reduce((sum, entry) => sum + entry.values[part.key], 0)]));
+  let legendX = 18; let legendY = 40;
+  context.font = "600 9px system-ui";
+  series.forEach(part => {
+    const label = `${part.label} (${seriesTotals[part.key]})`;
+    const itemWidth = context.measureText(label).width + 28;
+    if (legendX + itemWidth > width - 15) { legendX = 18; legendY += 17; }
+    context.fillStyle = part.color; context.fillRect(legendX, legendY + 1, 10, 10);
+    context.fillStyle = "#526f84"; context.textAlign = "left"; context.textBaseline = "top"; context.fillText(label, legendX + 15, legendY);
+    legendX += itemWidth;
+  });
   if (!entries.length) {
     context.fillStyle = "#71899b"; context.font = "600 13px system-ui"; context.textAlign = "center";
     context.fillText("Sin documentos registrados", width / 2, height / 2);
     return;
   }
-  const margin = { top: 48, right: 16, bottom: 42, left: 42 };
+  const margin = { top: legendY + 25, right: 16, bottom: 42, left: 42 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const maxValue = Math.max(...entries.map(([, count]) => count), 1);
+  const maxValue = Math.max(...entries.map(entry => entry.total), 1);
   const tickCount = Math.min(maxValue, 5);
   context.font = "10px system-ui"; context.textBaseline = "middle";
   for (let index = 0; index <= tickCount; index += 1) {
@@ -149,30 +179,58 @@ function drawYearChart(canvas, entries, color, title) {
   }
   const slot = plotWidth / entries.length;
   const barWidth = Math.min(58, slot * .58);
-  entries.forEach(([year, count], index) => {
+  entries.forEach((entry, index) => {
     const x = margin.left + slot * index + (slot - barWidth) / 2;
-    const barHeight = plotHeight * count / maxValue;
-    const y = margin.top + plotHeight - barHeight;
-    const gradient = context.createLinearGradient(0, y, 0, margin.top + plotHeight);
-    gradient.addColorStop(0, color); gradient.addColorStop(1, "#173b78");
-    context.fillStyle = gradient; context.beginPath(); context.roundRect(x, y, barWidth, barHeight, [5, 5, 0, 0]); context.fill();
-    context.fillStyle = "#173b57"; context.font = "800 11px system-ui"; context.textAlign = "center"; context.textBaseline = "bottom"; context.fillText(String(count), x + barWidth / 2, y - 5);
-    context.fillStyle = "#526f84"; context.font = "10px system-ui"; context.textBaseline = "top"; context.fillText(year, x + barWidth / 2, margin.top + plotHeight + 10);
+    let currentY = margin.top + plotHeight;
+    series.forEach(part => {
+      const value = entry.values[part.key];
+      if (!value) return;
+      const segmentHeight = plotHeight * value / maxValue;
+      currentY -= segmentHeight;
+      context.fillStyle = part.color; context.fillRect(x, currentY, barWidth, segmentHeight);
+      context.strokeStyle = "rgba(255,255,255,.8)"; context.lineWidth = 1; context.strokeRect(x, currentY, barWidth, segmentHeight);
+      if (segmentHeight >= 15) {
+        context.fillStyle = part.textColor || "#fff"; context.font = "800 9px system-ui"; context.textAlign = "center"; context.textBaseline = "middle";
+        context.fillText(String(value), x + barWidth / 2, currentY + segmentHeight / 2);
+      }
+    });
+    context.fillStyle = "#173b57"; context.font = "800 11px system-ui"; context.textAlign = "center"; context.textBaseline = "bottom"; context.fillText(String(entry.total), x + barWidth / 2, currentY - 5);
+    context.fillStyle = "#526f84"; context.font = "10px system-ui"; context.textBaseline = "top"; context.fillText(entry.year, x + barWidth / 2, margin.top + plotHeight + 10);
   });
 }
 
 function renderStatistics() {
+  const processSeries = [
+    { key: "draft", label: "Borrador", color: "#71869b" },
+    { key: "preparing", label: "En preparación", color: "#2e78bf" },
+    { key: "ready", label: "Listo para envío", color: "#24a7b8" },
+    { key: "submitted", label: "Enviado", color: "#2fa36f" },
+    { key: "revision", label: "En revisión", color: "#d3ab5f", textColor: "#173b57" },
+    { key: "other", label: "Otros estados", color: "#8b67b5" }
+  ];
+  const quartileSeries = [
+    { key: "Q1", label: "Q1", color: "#d3ab5f", textColor: "#173b57" },
+    { key: "Q2", label: "Q2", color: "#58a5d8" },
+    { key: "Q3", label: "Q3", color: "#45a979" },
+    { key: "Q4", label: "Q4", color: "#8b67b5" },
+    { key: "other", label: "Sin cuartil", color: "#71869b" }
+  ];
+  const degreeSeries = [
+    { key: "Maestría", label: "Maestría", color: "#35a578" },
+    { key: "Doctorado", label: "Doctorado", color: "#225ea8" },
+    { key: "Otro", label: "Otro grado", color: "#8b67b5" }
+  ];
   const charts = [
-    { id: "Working", title: "Papers en proceso", items: papers.filter(paper => paper.status !== "Publicado"), year: documentYear, color: "#2684d7" },
-    { id: "Published", title: "Papers publicados", items: papers.filter(paper => paper.status === "Publicado"), year: publicationYear, color: "#d3ab5f" },
-    { id: "Directed", title: "Tesis dirigidas", items: theses.filter(thesis => thesis.category === "Dirigida"), year: thesis => thesis.year || documentYear(thesis), color: "#35a578" },
-    { id: "Evaluated", title: "Tesis evaluadas", items: theses.filter(thesis => thesis.category === "Evaluada"), year: thesis => thesis.year || documentYear(thesis), color: "#687bd6" }
+    { id: "Working", title: "Papers en proceso", items: papers.filter(paper => paper.status !== "Publicado"), year: documentYear, group: paper => processGroup(paper.status), series: processSeries },
+    { id: "Published", title: "Papers publicados", items: papers.filter(paper => paper.status === "Publicado"), year: publicationYear, group: paper => quartileSeries.some(part => part.key === paper.quartile) ? paper.quartile : "other", series: quartileSeries },
+    { id: "Directed", title: "Tesis dirigidas", items: theses.filter(thesis => thesis.category === "Dirigida"), year: thesis => thesis.year || documentYear(thesis), group: thesis => degreeGroup(thesis.degree), series: degreeSeries },
+    { id: "Evaluated", title: "Tesis evaluadas", items: theses.filter(thesis => thesis.category === "Evaluada"), year: thesis => thesis.year || documentYear(thesis), group: thesis => degreeGroup(thesis.degree), series: degreeSeries }
   ];
   charts.forEach(chart => {
-    const entries = yearlyEntries(chart.items, chart.year);
+    const entries = yearlyStackedEntries(chart.items, chart.year, chart.group, chart.series);
     $(`#chart${chart.id}Total`).textContent = chart.items.length;
-    $(`#chart${chart.id}Summary`).textContent = entries.length ? entries.map(([year, count]) => `${year}: ${count}`).join(" · ") : "Sin datos";
-    drawYearChart($(`#chart${chart.id}`), entries, chart.color, chart.title);
+    $(`#chart${chart.id}Summary`).textContent = entries.length ? entries.map(entry => `${entry.year}: ${entry.total}`).join(" · ") : "Sin datos";
+    drawYearChart($(`#chart${chart.id}`), entries, chart.series, chart.title);
   });
 }
 
