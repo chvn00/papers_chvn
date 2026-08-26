@@ -4,7 +4,7 @@ const ACTIVE = new Set(["Listo para envío", "Enviado", "En revisión", "Revisi�
 const SUCCESS = new Set(["Aceptado", "Publicado"]);
 const FINAL = new Set(["Aceptado", "Publicado", "Rechazado", "Retirado"]);
 const $ = selector => document.querySelector(selector);
-const elements = { list: $("#paperList"), empty: $("#emptyState"), dialog: $("#paperDialog"), form: $("#paperForm"), thesisDialog: $("#thesisDialog"), thesisForm: $("#thesisForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
+const elements = { list: $("#paperList"), empty: $("#emptyState"), statistics: $("#statisticsPanel"), dialog: $("#paperDialog"), form: $("#paperForm"), thesisDialog: $("#thesisDialog"), thesisForm: $("#thesisForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
 let papers = loadLocalPapers();
 let theses = [];
 let currentLibraryTab = "working";
@@ -106,15 +106,84 @@ function thesisCardHTML(thesis) {
   const evaluated = thesis.category === "Evaluada";
   const degreeMedal = directed ? `<div class="quartile-medal degree-medal ${thesis.degree === "Maestría" ? "master-medal" : ""}" aria-label="Tesis de ${escapeHTML(thesis.degree)}" title="${escapeHTML(thesis.degree)}"><span>${thesis.degree === "Maestría" ? "Master" : "DOC"}</span></div>` : "";
   const badge = directed ? "Tesis dirigida" : evaluated ? "Tesis evaluada" : "Tesis";
-  return `<article class="paper-card thesis-card ${directed ? "directed-thesis-card" : ""} ${evaluated ? "evaluated-thesis-card" : ""} ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}>${degreeMedal}<div class="paper-card-main"><span class="badge thesis-badge">${badge}</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>${directed ? "Nivel" : "Grado"}</strong>${escapeHTML(thesis.degree)}</span>${directed ? `<span><strong>Año</strong>${escapeHTML(thesis.year || "Sin año")}</span>` : ""}</div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
+  return `<article class="paper-card thesis-card ${directed ? "directed-thesis-card" : ""} ${evaluated ? "evaluated-thesis-card" : ""} ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}>${degreeMedal}<div class="paper-card-main"><span class="badge thesis-badge">${badge}</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>${directed ? "Nivel" : "Grado"}</strong>${escapeHTML(thesis.degree)}</span>${directed || evaluated ? `<span><strong>Año</strong>${escapeHTML(thesis.year || "Sin año")}</span>` : ""}</div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
+}
+
+function documentYear(item) {
+  return String(item.submittedAt || item.createdAt || item.updatedAt || "").match(/^\d{4}/)?.[0] || "Sin año";
+}
+
+function yearlyEntries(items, yearForItem) {
+  const counts = new Map();
+  items.forEach(item => { const year = String(yearForItem(item) || "Sin año"); counts.set(year, (counts.get(year) || 0) + 1); });
+  return [...counts].sort(([a], [b]) => a === "Sin año" ? 1 : b === "Sin año" ? -1 : Number(a) - Number(b));
+}
+
+function drawYearChart(canvas, entries, color, title) {
+  const bounds = canvas.getBoundingClientRect();
+  const width = Math.max(280, Math.round(bounds.width || 560));
+  const height = Math.max(220, Math.round(bounds.height || 270));
+  const scale = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = width * scale; canvas.height = height * scale;
+  const context = canvas.getContext("2d");
+  context.scale(scale, scale);
+  context.fillStyle = "#fff"; context.fillRect(0, 0, width, height);
+  context.fillStyle = "#173b57"; context.font = "700 15px Georgia, serif"; context.textAlign = "left"; context.textBaseline = "top";
+  context.fillText(`${title} · documentos por año`, 18, 14);
+  if (!entries.length) {
+    context.fillStyle = "#71899b"; context.font = "600 13px system-ui"; context.textAlign = "center";
+    context.fillText("Sin documentos registrados", width / 2, height / 2);
+    return;
+  }
+  const margin = { top: 48, right: 16, bottom: 42, left: 42 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
+  const maxValue = Math.max(...entries.map(([, count]) => count), 1);
+  const tickCount = Math.min(maxValue, 5);
+  context.font = "10px system-ui"; context.textBaseline = "middle";
+  for (let index = 0; index <= tickCount; index += 1) {
+    const value = Math.round(maxValue * index / tickCount);
+    const y = margin.top + plotHeight - (plotHeight * value / maxValue);
+    context.strokeStyle = "#e1e9ef"; context.lineWidth = 1; context.beginPath(); context.moveTo(margin.left, y); context.lineTo(width - margin.right, y); context.stroke();
+    context.fillStyle = "#71899b"; context.textAlign = "right"; context.fillText(String(value), margin.left - 8, y);
+  }
+  const slot = plotWidth / entries.length;
+  const barWidth = Math.min(58, slot * .58);
+  entries.forEach(([year, count], index) => {
+    const x = margin.left + slot * index + (slot - barWidth) / 2;
+    const barHeight = plotHeight * count / maxValue;
+    const y = margin.top + plotHeight - barHeight;
+    const gradient = context.createLinearGradient(0, y, 0, margin.top + plotHeight);
+    gradient.addColorStop(0, color); gradient.addColorStop(1, "#173b78");
+    context.fillStyle = gradient; context.beginPath(); context.roundRect(x, y, barWidth, barHeight, [5, 5, 0, 0]); context.fill();
+    context.fillStyle = "#173b57"; context.font = "800 11px system-ui"; context.textAlign = "center"; context.textBaseline = "bottom"; context.fillText(String(count), x + barWidth / 2, y - 5);
+    context.fillStyle = "#526f84"; context.font = "10px system-ui"; context.textBaseline = "top"; context.fillText(year, x + barWidth / 2, margin.top + plotHeight + 10);
+  });
+}
+
+function renderStatistics() {
+  const charts = [
+    { id: "Working", title: "Papers en proceso", items: papers.filter(paper => paper.status !== "Publicado"), year: documentYear, color: "#2684d7" },
+    { id: "Published", title: "Papers publicados", items: papers.filter(paper => paper.status === "Publicado"), year: publicationYear, color: "#d3ab5f" },
+    { id: "Directed", title: "Tesis dirigidas", items: theses.filter(thesis => thesis.category === "Dirigida"), year: thesis => thesis.year || "Sin año", color: "#35a578" },
+    { id: "Evaluated", title: "Tesis evaluadas", items: theses.filter(thesis => thesis.category === "Evaluada"), year: thesis => thesis.year || "Sin año", color: "#687bd6" }
+  ];
+  charts.forEach(chart => {
+    const entries = yearlyEntries(chart.items, chart.year);
+    $(`#chart${chart.id}Total`).textContent = chart.items.length;
+    $(`#chart${chart.id}Summary`).textContent = entries.length ? entries.map(([year, count]) => `${year}: ${count}`).join(" · ") : "Sin datos";
+    drawYearChart($(`#chart${chart.id}`), entries, chart.color, chart.title);
+  });
 }
 
 function render() {
   const viewingTheses = ["theses", "directed", "evaluated"].includes(currentLibraryTab);
   const viewingDirected = currentLibraryTab === "directed";
   const viewingEvaluated = currentLibraryTab === "evaluated";
-  const visible = viewingTheses ? filteredTheses() : filteredPapers();
-  if (viewingDirected) {
+  const viewingStatistics = currentLibraryTab === "statistics";
+  const visible = viewingStatistics ? [] : viewingTheses ? filteredTheses() : filteredPapers();
+  if (viewingStatistics) elements.list.innerHTML = "";
+  else if (viewingDirected) {
     let activeYear = "";
     elements.list.innerHTML = visible.map(thesis => {
       const year = String(thesis.year || "Sin año");
@@ -133,13 +202,14 @@ function render() {
       return `${heading}${paperCardHTML(paper)}`;
     }).join("");
   } else elements.list.innerHTML = visible.map(paperCardHTML).join("");
-  elements.empty.hidden = visible.length > 0;
-  elements.list.hidden = visible.length === 0;
+  elements.statistics.hidden = !viewingStatistics;
+  elements.empty.hidden = viewingStatistics || visible.length > 0;
+  elements.list.hidden = viewingStatistics || visible.length === 0;
   $("#emptyTitle").textContent = viewingEvaluated ? "Aún no hay tesis evaluadas" : viewingDirected ? "Aún no hay tesis dirigidas" : viewingTheses ? "Aún no hay tesis registradas" : currentLibraryTab === "published" ? "Aún no hay papers publicados" : "Aquí comienza tu archivo";
   $("#emptyMessage").textContent = viewingEvaluated ? "Agrega la primera tesis que hayas evaluado." : viewingDirected ? "Agrega una tesis de Maestría o Doctorado que hayas dirigido." : viewingTheses ? "Agrega la primera tesis con su universidad, grado y enlace." : currentLibraryTab === "published" ? "Cuando un paper cambie a Publicado aparecerá aquí, organizado por año." : "Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.";
   $("#emptyAddButton").hidden = currentLibraryTab === "published";
   $("#emptyAddButton").textContent = viewingEvaluated ? "Registrar tesis evaluada" : viewingDirected ? "Registrar tesis dirigida" : viewingTheses ? "Registrar una tesis" : "Registrar un paper";
-  $("#resultsCount").textContent = viewingTheses ? `${visible.length} ${visible.length === 1 ? "tesis" : "tesis"}` : `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
+  $("#resultsCount").textContent = viewingStatistics ? "4 gráficos" : viewingTheses ? `${visible.length} ${visible.length === 1 ? "tesis" : "tesis"}` : `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
   $("#workingTabCount").textContent = papers.filter(p => p.status !== "Publicado").length;
   $("#publishedTabCount").textContent = papers.filter(p => p.status === "Publicado").length;
   $("#thesesTabCount").textContent = theses.filter(thesis => (thesis.category || "Propia") === "Propia").length;
@@ -154,6 +224,7 @@ function render() {
   ["Q1", "Q2", "Q3", "Q4"].forEach(quartile => {
     $(`#stat${quartile}`).textContent = papers.filter(p => p.status === "Publicado" && p.quartile === quartile).length;
   });
+  if (viewingStatistics) requestAnimationFrame(renderStatistics);
 }
 
 function setLibraryTab(tab) {
@@ -165,13 +236,15 @@ function setLibraryTab(tab) {
   });
   const published = tab === "published";
   const thesisView = ["theses", "directed", "evaluated"].includes(tab);
-  const simpleView = published || thesisView;
+  const viewingStatistics = tab === "statistics";
+  const simpleView = published || thesisView || viewingStatistics;
   $("#quartileStats").hidden = !published;
+  $("#libraryFilters").hidden = viewingStatistics;
   $("#statusFilterField").hidden = simpleView;
   $("#sortFilterField").hidden = simpleView;
   $("#libraryFilters").classList.toggle("published", simpleView);
   $("#newPaperButton").textContent = tab === "evaluated" ? "+ Tesis evaluada" : tab === "directed" ? "+ Tesis dirigida" : tab === "theses" ? "+ Nueva tesis" : "+ Nuevo paper";
-  $("#libraryTitle").textContent = tab === "evaluated" ? "Tesis evaluadas" : tab === "directed" ? "Tesis dirigidas" : tab === "theses" ? "Tesis CHVN" : "Manuscritos";
+  $("#libraryTitle").textContent = viewingStatistics ? "Estadísticas" : tab === "evaluated" ? "Tesis evaluadas" : tab === "directed" ? "Tesis dirigidas" : tab === "theses" ? "Tesis CHVN" : "Manuscritos";
   elements.search.placeholder = thesisView ? "Buscar por título, universidad o grado…" : "Buscar por título, revista o coautor…";
   elements.statusFilter.value = "";
   elements.search.value = "";
@@ -206,9 +279,9 @@ function openThesisForm(thesis = null, category = currentLibraryTab === "directe
   $("#thesisDegree").disabled = directed;
   $("#directedDegreeField").hidden = !directed;
   $("#directedDegree").disabled = !directed;
-  $("#directedYearField").hidden = !directed;
-  $("#directedYear").disabled = !directed;
-  if (directed) $("#directedYear").value = thesis?.year || new Date().getFullYear();
+  $("#directedYearField").hidden = !(directed || evaluated);
+  $("#directedYear").disabled = !(directed || evaluated);
+  if (directed || evaluated) $("#directedYear").value = thesis?.year || new Date().getFullYear();
   if (thesis) {
     $("#thesisTitle").value = thesis.title || "";
     $("#thesisUniversity").value = thesis.university || "";
@@ -246,7 +319,7 @@ elements.form.addEventListener("submit", async event => {
 elements.thesisForm.addEventListener("submit", async event => {
   event.preventDefault();
   const id = $("#thesisId").value;
-  const thesis = { title: $("#thesisTitle").value.trim(), university: $("#thesisUniversity").value.trim(), degree: thesisFormCategory === "Dirigida" ? $("#directedDegree").value : $("#thesisDegree").value.trim(), year: thesisFormCategory === "Dirigida" ? Number($("#directedYear").value) : null, category: thesisFormCategory, link: $("#thesisLink").value.trim() };
+  const thesis = { title: $("#thesisTitle").value.trim(), university: $("#thesisUniversity").value.trim(), degree: thesisFormCategory === "Dirigida" ? $("#directedDegree").value : $("#thesisDegree").value.trim(), year: thesisFormCategory === "Propia" ? null : Number($("#directedYear").value), category: thesisFormCategory, link: $("#thesisLink").value.trim() };
   try {
     const saved = await request(id ? `/api/theses/${id}` : "/api/theses", { method: id ? "PUT" : "POST", body: JSON.stringify(thesis) });
     if (id) theses = theses.map(item => item.id === id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item); else theses.unshift(saved);
@@ -446,6 +519,26 @@ function selectPdf(item, button, resource = "papers") {
   });
   input.click();
 }
+
+elements.statistics.addEventListener("click", event => {
+  const button = event.target.closest("[data-download-chart]");
+  if (!button) return;
+  const canvas = $(`#${button.dataset.downloadChart}`);
+  canvas.toBlob(blob => {
+    if (!blob) return showToast("No fue posible generar la imagen");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${button.dataset.chartName}-${new Date().toISOString().slice(0, 10)}.png`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    showToast("Gráfico descargado como PNG");
+  }, "image/png");
+});
+
+window.addEventListener("resize", () => {
+  clearTimeout(renderStatistics.resizeTimer);
+  renderStatistics.resizeTimer = setTimeout(() => { if (currentLibraryTab === "statistics") renderStatistics(); }, 160);
+});
 
 [$("#newPaperButton"), $("#emptyAddButton")].forEach(button => button.addEventListener("click", openCurrentForm));
 document.querySelectorAll("[data-library-tab]").forEach(button => button.addEventListener("click", () => setLibraryTab(button.dataset.libraryTab)));

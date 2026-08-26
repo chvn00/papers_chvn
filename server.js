@@ -137,10 +137,10 @@ function normalizeThesis(input = {}) {
   const university = text("university");
   const degree = text("degree");
   const category = ["Dirigida", "Evaluada"].includes(text("category")) ? text("category") : "Propia";
-  const year = category === "Dirigida" ? Number(text("year")) : null;
+  const year = category === "Propia" ? null : Number(text("year"));
   if (!title || !university || !degree) throw new Error("Título, universidad y grado son obligatorios");
   if (category === "Dirigida" && !["Maestría", "Doctorado"].includes(degree)) throw new Error("Selecciona Maestría o Doctorado");
-  if (category === "Dirigida" && (!Number.isInteger(year) || year < 1900 || year > 2100)) throw new Error("Ingresa un año válido entre 1900 y 2100");
+  if (category !== "Propia" && (!Number.isInteger(year) || year < 1900 || year > 2100)) throw new Error("Ingresa un año válido entre 1900 y 2100");
   return {
     id: text("id") || crypto.randomUUID(), title, university, degree, year, category, link: text("link"),
     createdAt: text("createdAt") || new Date().toISOString(), updatedAt: new Date().toISOString()

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
   <title>Papers CHVN</title>
-  <link rel="stylesheet" href="styles.css?v=20260826-31">
+  <link rel="stylesheet" href="styles.css?v=20260826-32">
 </head>
 <body class="app-locked">
   <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
@@ -58,6 +58,7 @@
         <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="theses">Tesis CHVN <span id="thesesTabCount">0</span></button>
         <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="directed">Tesis dirigidas <span id="directedTabCount">0</span></button>
         <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="evaluated">Tesis evaluadas <span id="evaluatedTabCount">0</span></button>
+        <button class="library-tab" type="button" role="tab" aria-selected="false" data-library-tab="statistics">Estadísticas</button>
       </nav>
 
       <section class="quartile-stats" id="quartileStats" aria-label="Publicaciones por cuartil" hidden>
@@ -87,6 +88,29 @@
           </select>
         </label>
       </div>
+
+      <section class="statistics-panel" id="statisticsPanel" aria-label="Documentos por año" hidden>
+        <article class="chart-card">
+          <header><div><p class="eyebrow">Papers</p><h3>En proceso</h3></div><strong id="chartWorkingTotal">0</strong></header>
+          <canvas id="chartWorking" role="img" aria-label="Papers en proceso por año"></canvas>
+          <footer><span id="chartWorkingSummary">Sin datos</span><button type="button" data-download-chart="chartWorking" data-chart-name="papers-en-proceso">Descargar PNG</button></footer>
+        </article>
+        <article class="chart-card">
+          <header><div><p class="eyebrow">Papers</p><h3>Publicados</h3></div><strong id="chartPublishedTotal">0</strong></header>
+          <canvas id="chartPublished" role="img" aria-label="Papers publicados por año"></canvas>
+          <footer><span id="chartPublishedSummary">Sin datos</span><button type="button" data-download-chart="chartPublished" data-chart-name="papers-publicados">Descargar PNG</button></footer>
+        </article>
+        <article class="chart-card">
+          <header><div><p class="eyebrow">Tesis</p><h3>Dirigidas</h3></div><strong id="chartDirectedTotal">0</strong></header>
+          <canvas id="chartDirected" role="img" aria-label="Tesis dirigidas por año"></canvas>
+          <footer><span id="chartDirectedSummary">Sin datos</span><button type="button" data-download-chart="chartDirected" data-chart-name="tesis-dirigidas">Descargar PNG</button></footer>
+        </article>
+        <article class="chart-card">
+          <header><div><p class="eyebrow">Tesis</p><h3>Evaluadas</h3></div><strong id="chartEvaluatedTotal">0</strong></header>
+          <canvas id="chartEvaluated" role="img" aria-label="Tesis evaluadas por año"></canvas>
+          <footer><span id="chartEvaluatedSummary">Sin datos</span><button type="button" data-download-chart="chartEvaluated" data-chart-name="tesis-evaluadas">Descargar PNG</button></footer>
+        </article>
+      </section>
 
       <div id="paperList" class="paper-list" aria-live="polite"></div>
       <div id="emptyState" class="empty-state" hidden>
@@ -193,6 +217,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260826-31"></script>
+  <script src="app.js?v=20260826-32"></script>
 </body>
 </html>
