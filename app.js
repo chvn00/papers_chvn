@@ -88,7 +88,7 @@ function filteredTheses() {
   const query = elements.search.value.trim().toLocaleLowerCase("es");
   const category = currentLibraryTab === "directed" ? "Dirigida" : currentLibraryTab === "evaluated" ? "Evaluada" : "Propia";
   return theses.filter(thesis => (thesis.category || "Propia") === category && (!query || [thesis.title, thesis.university, thesis.degree, thesis.year].join(" ").toLocaleLowerCase("es").includes(query)))
-    .sort((a, b) => currentLibraryTab === "directed" ? (Number(b.year) || 0) - (Number(a.year) || 0) || (b.updatedAt || "").localeCompare(a.updatedAt || "") : (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+    .sort((a, b) => ["directed", "evaluated"].includes(currentLibraryTab) ? (Number(b.year || documentYear(b)) || 0) - (Number(a.year || documentYear(a)) || 0) || (b.updatedAt || "").localeCompare(a.updatedAt || "") : (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
 function paperCardHTML(paper) {
@@ -106,7 +106,7 @@ function thesisCardHTML(thesis) {
   const evaluated = thesis.category === "Evaluada";
   const degreeMedal = directed ? `<div class="quartile-medal degree-medal ${thesis.degree === "Maestría" ? "master-medal" : ""}" aria-label="Tesis de ${escapeHTML(thesis.degree)}" title="${escapeHTML(thesis.degree)}"><span>${thesis.degree === "Maestría" ? "Master" : "DOC"}</span></div>` : "";
   const badge = directed ? "Tesis dirigida" : evaluated ? "Tesis evaluada" : "Tesis";
-  return `<article class="paper-card thesis-card ${directed ? "directed-thesis-card" : ""} ${evaluated ? "evaluated-thesis-card" : ""} ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}>${degreeMedal}<div class="paper-card-main"><span class="badge thesis-badge">${badge}</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>${directed ? "Nivel" : "Grado"}</strong>${escapeHTML(thesis.degree)}</span>${directed || evaluated ? `<span><strong>Año</strong>${escapeHTML(thesis.year || "Sin año")}</span>` : ""}</div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
+  return `<article class="paper-card thesis-card ${directed ? "directed-thesis-card" : ""} ${evaluated ? "evaluated-thesis-card" : ""} ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}>${degreeMedal}<div class="paper-card-main"><span class="badge thesis-badge">${badge}</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>${directed ? "Nivel" : "Grado"}</strong>${escapeHTML(thesis.degree)}</span>${directed || evaluated ? `<span><strong>Año</strong>${escapeHTML(thesis.year || documentYear(thesis))}</span>` : ""}</div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
 }
 
 function documentYear(item) {
@@ -183,12 +183,14 @@ function render() {
   const viewingStatistics = currentLibraryTab === "statistics";
   const visible = viewingStatistics ? [] : viewingTheses ? filteredTheses() : filteredPapers();
   if (viewingStatistics) elements.list.innerHTML = "";
-  else if (viewingDirected) {
+  else if (viewingDirected || viewingEvaluated) {
     let activeYear = "";
     elements.list.innerHTML = visible.map(thesis => {
-      const year = String(thesis.year || "Sin año");
-      const yearCount = visible.filter(item => String(item.year || "Sin año") === year).length;
-      const heading = year !== activeYear ? `<div class="year-heading"><span>${escapeHTML(year)}</span><small>${yearCount} ${yearCount === 1 ? "tesis dirigida" : "tesis dirigidas"}</small></div>` : "";
+      const year = String(thesis.year || documentYear(thesis));
+      const yearCount = visible.filter(item => String(item.year || documentYear(item)) === year).length;
+      const singular = viewingEvaluated ? "tesis evaluada" : "tesis dirigida";
+      const plural = viewingEvaluated ? "tesis evaluadas" : "tesis dirigidas";
+      const heading = year !== activeYear ? `<div class="year-heading"><span>${escapeHTML(year)}</span><small>${yearCount} ${yearCount === 1 ? singular : plural}</small></div>` : "";
       activeYear = year;
       return `${heading}${thesisCardHTML(thesis)}`;
     }).join("");
