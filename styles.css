@@ -101,6 +101,8 @@ h1 em { color: var(--green); font-weight: 400; }
 .year-heading:first-child { margin-top: 0; }
 .year-heading span { font: 600 28px Georgia, "Times New Roman", serif; }
 .year-heading small { color: #668096; font-size: 11px; }
+.stage-heading { border-bottom-color: #35a578; }
+.stage-heading span { font-size: 23px; }
 .paper-card { min-width: 0; min-height: 272px; display: flex; flex-direction: column; justify-content: flex-start; padding: 18px; position: relative; overflow: hidden; background: linear-gradient(145deg, rgba(40,91,167,.98), rgba(23,58,119,.98)); border: 1px solid var(--line); border-top: 2px solid var(--green); transition: border-color .18s, box-shadow .18s, transform .18s; }
 .paper-card::after { content: ""; position: absolute; right: -35px; bottom: -48px; width: 100px; height: 100px; border: 1px solid rgba(211,171,95,.12); border-radius: 50%; }
 .paper-card:hover { z-index: 1; transform: translateY(-3px); border-color: rgba(240,204,122,.7); box-shadow: 0 16px 34px rgba(0,43,79,.3); }

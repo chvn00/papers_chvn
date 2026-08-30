@@ -261,7 +261,16 @@ function render() {
       activeYear = year;
       return `${heading}${paperCardHTML(paper)}`;
     }).join("");
-  } else elements.list.innerHTML = visible.map(paperCardHTML).join("");
+  } else {
+    const knownStatuses = STATUSES.filter(status => status !== "Publicado");
+    const extraStatuses = [...new Set(visible.map(paper => paper.status).filter(status => !knownStatuses.includes(status)))];
+    elements.list.innerHTML = [...knownStatuses, ...extraStatuses].map(status => {
+      const stagePapers = visible.filter(paper => paper.status === status);
+      if (!stagePapers.length) return "";
+      const heading = `<div class="year-heading stage-heading"><span>${escapeHTML(status)}</span><small>${stagePapers.length} ${stagePapers.length === 1 ? "paper" : "papers"}</small></div>`;
+      return `${heading}${stagePapers.map(paperCardHTML).join("")}`;
+    }).join("");
+  }
   elements.statistics.hidden = !viewingStatistics;
   elements.empty.hidden = viewingStatistics || visible.length > 0;
   elements.list.hidden = viewingStatistics || visible.length === 0;
