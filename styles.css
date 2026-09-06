@@ -79,6 +79,7 @@ h1 em { color: var(--green); font-weight: 400; }
 .filters input, .filters select { height: 44px; padding: 0 14px; }
 .filters input::placeholder { color: #839aac; }
 .form-grid input::placeholder, .form-grid textarea::placeholder { color: #94c0dd; }
+.field-hint { display: block; margin-top: 6px; color: #86abc3; font-size: 9px; font-weight: 500; line-height: 1.35; }
 .search-field { position: relative; }
 .search-field::before { content: "⌕"; position: absolute; left: 14px; top: 6px; color: #0078d4; font-size: 25px; }
 .search-field input { padding-left: 44px; }
@@ -152,6 +153,11 @@ h1 em { color: var(--green); font-weight: 400; }
 .pdf-upload { min-height: 27px; padding: 0 8px; color: #fff1c8; background: rgba(240,204,122,.08); border: 1px solid rgba(240,204,122,.42); border-radius: 3px; font-size: 9px; font-weight: 800; }
 .pdf-upload:hover { color: #173b57; background: var(--gold-bright); }
 .pdf-upload:disabled { cursor: wait; opacity: .65; }
+.project-folder-button { min-height: 27px; padding: 0 8px; color: #173b57; background: #8ce1bb; border: 1px solid #baf3d8; border-radius: 3px; font-size: 9px; font-weight: 850; }
+.project-folder-button::before { content: "▣ "; }
+.project-folder-button:hover { background: #baf3d8; }
+.project-folder-button.empty { color: #9ed9bf; background: rgba(59,165,121,.1); border-color: rgba(91,205,153,.35); }
+.project-folder-button.empty::before { content: ""; }
 .pdf-open { color: #8ce1bb; }
 .card-actions { display: flex; gap: 5px; }
 .icon-button { width: 29px; height: 29px; padding: 0; color: var(--muted); background: rgba(255,255,255,.025); border: 1px solid var(--line); border-radius: 3px; font-size: 16px; }

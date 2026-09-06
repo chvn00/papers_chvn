@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
   <title>Papers CHVN</title>
-  <link rel="stylesheet" href="styles.css?v=20260830-36">
+  <link rel="stylesheet" href="styles.css?v=20260906-37">
 </head>
 <body class="app-locked">
   <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
@@ -151,6 +151,10 @@
         </label>
         <label class="full">Coautores <textarea id="coauthors" rows="2" placeholder="Separa los nombres con comas"></textarea></label>
         <label class="full">Filiación <textarea id="affiliation" rows="2" placeholder="Universidad, centro o institución"></textarea></label>
+        <label class="full" id="folderPathField">Carpeta del proyecto en Mac
+          <input id="folderPath" placeholder="/Users/cesarvalencia/Documents/Mis papers/Proyecto">
+          <small class="field-hint">Pega la ruta completa de la carpeta. Solo se muestra el botón para abrirla; la ruta permanece privada.</small>
+        </label>
         <label>Fecha de envío <input id="submittedAt" type="date"></label>
         <label>Enlace publicado / DOI <input id="link" type="url" placeholder="https://…"></label>
         <label class="citation-field full" id="citationField" hidden>Cita del paper
@@ -217,6 +221,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260830-36"></script>
+  <script src="app.js?v=20260906-37"></script>
 </body>
 </html>

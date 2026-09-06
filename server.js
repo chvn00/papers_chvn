@@ -104,7 +104,7 @@ function normalizePaper(input = {}) {
   if (status === "Publicado" && !["Q1", "Q2", "Q3", "Q4"].includes(quartile)) throw new Error("Selecciona el cuartil de la publicación");
   return {
     id: text("id") || crypto.randomUUID(), title, journal, status, quartile,
-    coauthors: text("coauthors"), affiliation: text("affiliation"), submittedAt: text("submittedAt") || null,
+    coauthors: text("coauthors"), affiliation: text("affiliation"), folderPath: text("folderPath"), submittedAt: text("submittedAt") || null,
     link: text("link"), citation: status === "Publicado" ? text("citation") : "", notes: text("notes"), createdAt: text("createdAt") || new Date().toISOString(), updatedAt: new Date().toISOString()
   };
 }
@@ -114,21 +114,21 @@ function fromRow(row) {
   const iso = value => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
   return {
     id: row.id, title: row.title, journal: row.journal, status: row.status, quartile: row.quartile || "", coauthors: row.coauthors || "",
-    affiliation: row.affiliation || "", submittedAt: dateOnly(row.submitted_at),
+    affiliation: row.affiliation || "", folderPath: row.folder_path || "", submittedAt: dateOnly(row.submitted_at),
     link: row.link || "", citation: row.citation || "", notes: row.notes || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at),
     hasPdf: Boolean(row.has_pdf), pdfName: row.pdf_name || "", pdfSize: Number(row.pdf_size || 0)
   };
 }
 
 const upsertSql = `INSERT INTO papers
-  (id, title, journal, status, quartile, coauthors, affiliation, submitted_at, link, citation, notes, created_at, updated_at)
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+  (id, title, journal, status, quartile, coauthors, affiliation, folder_path, submitted_at, link, citation, notes, created_at, updated_at)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
   ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, journal=EXCLUDED.journal, status=EXCLUDED.status,
-  quartile=EXCLUDED.quartile, coauthors=EXCLUDED.coauthors, affiliation=EXCLUDED.affiliation, submitted_at=EXCLUDED.submitted_at,
+  quartile=EXCLUDED.quartile, coauthors=EXCLUDED.coauthors, affiliation=EXCLUDED.affiliation, folder_path=EXCLUDED.folder_path, submitted_at=EXCLUDED.submitted_at,
   link=EXCLUDED.link, citation=EXCLUDED.citation, notes=EXCLUDED.notes, updated_at=EXCLUDED.updated_at RETURNING *`;
 
 function paperValues(paper) {
-  return [paper.id, paper.title, paper.journal, paper.status, paper.quartile || null, paper.coauthors, paper.affiliation, paper.submittedAt, paper.link, paper.citation, paper.notes, paper.createdAt, paper.updatedAt];
+  return [paper.id, paper.title, paper.journal, paper.status, paper.quartile || null, paper.coauthors, paper.affiliation, paper.folderPath, paper.submittedAt, paper.link, paper.citation, paper.notes, paper.createdAt, paper.updatedAt];
 }
 
 function normalizeThesis(input = {}) {
@@ -351,11 +351,12 @@ async function initialize() {
   if (!appPassword || !sessionSecret) throw new Error("APP_PASSWORD y SESSION_SECRET son obligatorias");
   await pool.query(`CREATE TABLE IF NOT EXISTS papers (
     id UUID PRIMARY KEY, title TEXT NOT NULL, journal TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Borrador',
-    quartile TEXT, coauthors TEXT, affiliation TEXT, submitted_at DATE, link TEXT, citation TEXT, notes TEXT,
+    quartile TEXT, coauthors TEXT, affiliation TEXT, folder_path TEXT, submitted_at DATE, link TEXT, citation TEXT, notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
   await pool.query("ALTER TABLE papers ADD COLUMN IF NOT EXISTS quartile TEXT");
   await pool.query("ALTER TABLE papers ADD COLUMN IF NOT EXISTS citation TEXT");
+  await pool.query("ALTER TABLE papers ADD COLUMN IF NOT EXISTS folder_path TEXT");
   await pool.query("CREATE INDEX IF NOT EXISTS papers_updated_at_idx ON papers (updated_at DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS theses (
     id UUID PRIMARY KEY, title TEXT NOT NULL, university TEXT NOT NULL, degree TEXT NOT NULL, thesis_year INTEGER, category TEXT NOT NULL DEFAULT 'Propia', link TEXT,

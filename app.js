@@ -97,7 +97,8 @@ function paperCardHTML(paper) {
   const medal = published ? `<div class="quartile-medal" aria-label="Cuartil ${escapeHTML(paper.quartile || "sin registrar")}" title="Publicación ${escapeHTML(paper.quartile || "sin cuartil")}"><span>${escapeHTML(paper.quartile || "Q?")}</span></div>` : "";
   const publicationControl = link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Ver publicación ↗</a><button class="publication-link-edit" type="button" data-publication-link="${paper.id}" aria-label="Cambiar enlace publicado" title="Cambiar enlace">✎</button>` : `<button class="publication-link-add" type="button" data-publication-link="${paper.id}">＋ Cargar enlace publicado</button>`;
   const citationControl = published ? `<div class="citation-row"><p title="${escapeHTML(paper.citation || "Cita no registrada")}">${escapeHTML(paper.citation || "Cita no registrada")}</p>${paper.citation ? `<button type="button" data-copy-citation="${paper.id}">Copiar cita</button>` : `<button type="button" data-add-citation="${paper.id}">Agregar cita</button>`}</div>` : "";
-  return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div>${citationControl}<div class="card-footer"><div class="paper-resources">${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
+  const folderControl = published ? "" : paper.folderPath ? `<button class="project-folder-button" type="button" data-open-folder="${paper.id}" title="Abrir la carpeta del proyecto en Finder">Abrir carpeta</button>` : `<button class="project-folder-button empty" type="button" data-add-folder="${paper.id}">＋ Carpeta</button>`;
+  return `<article class="paper-card ${paper.hasPdf ? "has-pdf" : ""} ${published ? "published" : ""}" data-paper-id="${paper.id}" ${paper.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(paper.title)}"` : ""}>${medal}<div class="paper-card-main"><span class="badge ${badgeClass(paper.status)}">${escapeHTML(paper.status)}</span><h3>${escapeHTML(paper.title)}</h3><div class="paper-meta"><span><strong>Journal</strong>${escapeHTML(paper.journal)}</span><span><strong>Envío</strong>${formatDate(paper.submittedAt)}</span>${paper.coauthors ? `<span class="paper-coauthors"><strong>Coautores</strong>${escapeHTML(paper.coauthors)}</span>` : ""}</div>${paper.notes ? `<p class="paper-notes">${escapeHTML(paper.notes)}</p>` : ""}</div><div class="publication-row"><strong>PUBLICACIÓN</strong><div>${publicationControl}</div></div>${citationControl}<div class="card-footer"><div class="paper-resources">${folderControl}${paper.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-pdf="${paper.id}" title="${escapeHTML(paper.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-pdf="${paper.id}">${paper.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit="${paper.id}" aria-label="Editar ${escapeHTML(paper.title)}">✎</button><button class="icon-button" type="button" data-delete="${paper.id}" aria-label="Eliminar ${escapeHTML(paper.title)}">×</button></div></div></article>`;
 }
 
 function thesisCardHTML(thesis) {
@@ -324,7 +325,7 @@ function openForm(paper = null) {
   elements.form.reset(); $("#paperId").value = paper?.id || "";
   $("#dialogEyebrow").textContent = paper ? "Editar registro" : "Nuevo registro";
   $("#dialogTitle").textContent = paper ? "Actualizar paper" : "Agregar paper";
-  if (paper) ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "citation", "notes"].forEach(key => $(`#${key}`).value = paper[key] || "");
+  if (paper) ["title", "journal", "status", "quartile", "coauthors", "affiliation", "folderPath", "submittedAt", "link", "citation", "notes"].forEach(key => $(`#${key}`).value = paper[key] || "");
   syncQuartileField();
   elements.dialog.showModal(); setTimeout(() => $("#title").focus(), 50);
 }
@@ -332,6 +333,7 @@ function syncQuartileField() {
   const published = $("#status").value === "Publicado";
   $("#quartileField").hidden = !published;
   $("#citationField").hidden = !published;
+  $("#folderPathField").hidden = published;
   $("#quartile").required = published;
   if (!published) { $("#quartile").value = ""; $("#citation").value = ""; }
 }
@@ -377,7 +379,7 @@ $("#logoutButton").addEventListener("click", async () => { await request("/api/l
 elements.form.addEventListener("submit", async event => {
   event.preventDefault();
   const id = $("#paperId").value;
-  const paper = {}; ["title", "journal", "status", "quartile", "coauthors", "affiliation", "submittedAt", "link", "citation", "notes"].forEach(key => paper[key] = $(`#${key}`).value.trim());
+  const paper = {}; ["title", "journal", "status", "quartile", "coauthors", "affiliation", "folderPath", "submittedAt", "link", "citation", "notes"].forEach(key => paper[key] = $(`#${key}`).value.trim());
   try {
     const saved = await request(id ? `/api/papers/${id}` : "/api/papers", { method: id ? "PUT" : "POST", body: JSON.stringify(paper) });
     if (id) papers = papers.map(item => item.id === id ? { ...saved, hasPdf: item.hasPdf, pdfName: item.pdfName, pdfSize: item.pdfSize } : item); else papers.unshift(saved);
@@ -408,6 +410,8 @@ elements.list.addEventListener("click", async event => {
   const publicationLinkId = event.target.closest("[data-publication-link]")?.dataset.publicationLink;
   const copyCitationId = event.target.closest("[data-copy-citation]")?.dataset.copyCitation;
   const addCitationId = event.target.closest("[data-add-citation]")?.dataset.addCitation;
+  const openFolderId = event.target.closest("[data-open-folder]")?.dataset.openFolder;
+  const addFolderId = event.target.closest("[data-add-folder]")?.dataset.addFolder;
   if (editThesisId) { const thesis = theses.find(item => item.id === editThesisId); openThesisForm(thesis, thesis.category || "Propia"); }
   if (uploadThesisPdfId) selectPdf(theses.find(thesis => thesis.id === uploadThesisPdfId), event.target.closest("[data-upload-thesis-pdf]"), "theses");
   if (previewThesisPdfId) openPdfPreview(theses.find(thesis => thesis.id === previewThesisPdfId), "theses");
@@ -424,6 +428,8 @@ elements.list.addEventListener("click", async event => {
   if (publicationLinkId) editPublicationLink(papers.find(p => p.id === publicationLinkId));
   if (copyCitationId) copyCitation(papers.find(p => p.id === copyCitationId));
   if (addCitationId) { openForm(papers.find(p => p.id === addCitationId)); setTimeout(() => $("#citation").focus(), 80); }
+  if (openFolderId) openProjectFolder(papers.find(p => p.id === openFolderId));
+  if (addFolderId) { openForm(papers.find(p => p.id === addFolderId)); setTimeout(() => $("#folderPath").focus(), 80); }
   if (deleteId) {
     const paper = papers.find(p => p.id === deleteId);
     if (confirm(`¿Eliminar “${paper.title}”? Esta acción no se puede deshacer.`)) {
@@ -444,6 +450,14 @@ elements.list.addEventListener("click", async event => {
     }
   }
 });
+
+function openProjectFolder(paper) {
+  const folderPath = String(paper?.folderPath || "").trim();
+  if (!folderPath) return showToast("Agrega primero la ruta de la carpeta");
+  if (!folderPath.startsWith("/Users/cesarvalencia/")) return alert("La ruta debe comenzar por /Users/cesarvalencia/");
+  window.location.href = `papers-chvn://open?path=${encodeURIComponent(folderPath)}`;
+  showToast("Abriendo carpeta en Finder…");
+}
 
 async function copyCitation(paper) {
   if (!paper?.citation) return;
