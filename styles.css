@@ -128,6 +128,13 @@ h1 em { color: var(--green); font-weight: 400; }
 .thesis-card { border-top-color: var(--gold); }
 .directed-thesis-card { border-top-color: #8ce1bb; }
 .evaluated-thesis-card { border-top-color: #67b8ff; }
+.congress-card { border-top-color: #5ac7df; background: linear-gradient(145deg, rgba(34,101,176,.98), rgba(20,65,126,.98)); }
+.congress-badge { color: #b7f4ff; background: rgba(63,196,220,.14); border-color: rgba(111,224,242,.36); }
+.congress-meta { grid-template-columns: 1fr; }
+.congress-meta span { white-space: normal; }
+.congress-link-row { margin-top: auto; }
+.congress-date-mark { color: #a9cce2; font-size: 9px; font-weight: 700; }
+.congress-year-heading { border-bottom-color: #43b9cf; }
 .directed-thesis-card h3 { padding-right: 42px; }
 .degree-medal span { font-size: 10px; letter-spacing: 0; }
 .degree-medal.master-medal span { font-size: 8px; }

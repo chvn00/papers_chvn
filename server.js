@@ -161,6 +161,34 @@ function thesisValues(thesis) {
   return [thesis.id, thesis.title, thesis.university, thesis.degree, thesis.year, thesis.category, thesis.link, thesis.createdAt, thesis.updatedAt];
 }
 
+function normalizeCongress(input = {}) {
+  const text = key => String(input[key] || "").trim();
+  const title = text("title");
+  const eventName = text("eventName");
+  const eventDate = text("eventDate");
+  if (!title || !eventName || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) throw new Error("Título, congreso y fecha son obligatorios");
+  return {
+    id: text("id") || crypto.randomUUID(), title, eventName, eventDate,
+    location: text("location"), link: text("link"), notes: text("notes"),
+    createdAt: text("createdAt") || new Date().toISOString(), updatedAt: new Date().toISOString()
+  };
+}
+
+function congressFromRow(row) {
+  const dateOnly = value => !value ? "" : (typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10));
+  const iso = value => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+  return { id: row.id, title: row.title, eventName: row.event_name, eventDate: dateOnly(row.event_date), location: row.location || "", link: row.link || "", notes: row.notes || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) };
+}
+
+const congressUpsertSql = `INSERT INTO congresses (id, title, event_name, event_date, location, link, notes, created_at, updated_at)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+  ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, event_name=EXCLUDED.event_name, event_date=EXCLUDED.event_date,
+  location=EXCLUDED.location, link=EXCLUDED.link, notes=EXCLUDED.notes, updated_at=EXCLUDED.updated_at RETURNING *`;
+
+function congressValues(congress) {
+  return [congress.id, congress.title, congress.eventName, congress.eventDate, congress.location, congress.link, congress.notes, congress.createdAt, congress.updatedAt];
+}
+
 async function api(request, response, pathname) {
   if (!sameOrigin(request)) return json(response, 403, { error: "Origen no permitido" });
 
@@ -212,6 +240,31 @@ async function api(request, response, pathname) {
     const thesis = normalizeThesis(await readBody(request));
     const result = await pool.query(thesisUpsertSql, thesisValues(thesis));
     return json(response, 201, thesisFromRow(result.rows[0]));
+  }
+
+  if (pathname === "/api/congresses" && request.method === "GET") {
+    const result = await pool.query("SELECT * FROM congresses ORDER BY event_date DESC, updated_at DESC");
+    return json(response, 200, result.rows.map(congressFromRow));
+  }
+
+  if (pathname === "/api/congresses" && request.method === "POST") {
+    const congress = normalizeCongress(await readBody(request));
+    const result = await pool.query(congressUpsertSql, congressValues(congress));
+    return json(response, 201, congressFromRow(result.rows[0]));
+  }
+
+  const congressMatch = pathname.match(/^\/api\/congresses\/([a-zA-Z0-9-]+)$/);
+  if (congressMatch && request.method === "PUT") {
+    const current = await pool.query("SELECT created_at FROM congresses WHERE id=$1", [congressMatch[1]]);
+    if (!current.rowCount) return json(response, 404, { error: "Congreso no encontrado" });
+    const congress = normalizeCongress({ ...(await readBody(request)), id: congressMatch[1], createdAt: current.rows[0].created_at.toISOString() });
+    const result = await pool.query(congressUpsertSql, congressValues(congress));
+    return json(response, 200, congressFromRow(result.rows[0]));
+  }
+
+  if (congressMatch && request.method === "DELETE") {
+    await pool.query("DELETE FROM congresses WHERE id=$1", [congressMatch[1]]);
+    return json(response, 200, { deleted: true });
   }
 
   const thesisMatch = pathname.match(/^\/api\/theses\/([a-zA-Z0-9-]+)$/);
@@ -306,11 +359,13 @@ async function api(request, response, pathname) {
     const body = await readBody(request);
     if (!Array.isArray(body.papers) || body.papers.length > 2000) return json(response, 400, { error: "Respaldo inválido" });
     if (body.theses !== undefined && (!Array.isArray(body.theses) || body.theses.length > 2000)) return json(response, 400, { error: "Respaldo de tesis inválido" });
+    if (body.congresses !== undefined && (!Array.isArray(body.congresses) || body.congresses.length > 2000)) return json(response, 400, { error: "Respaldo de congresos inválido" });
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
       if (body.replace) await client.query("DELETE FROM papers");
       if (body.replace && Array.isArray(body.theses)) await client.query("DELETE FROM theses");
+      if (body.replace && Array.isArray(body.congresses)) await client.query("DELETE FROM congresses");
       for (const input of body.papers) {
         const paper = normalizePaper(input);
         await client.query(upsertSql, paperValues(paper));
@@ -319,12 +374,17 @@ async function api(request, response, pathname) {
         const thesis = normalizeThesis(input);
         await client.query(thesisUpsertSql, thesisValues(thesis));
       }
+      for (const input of body.congresses || []) {
+        const congress = normalizeCongress(input);
+        await client.query(congressUpsertSql, congressValues(congress));
+      }
       await client.query("COMMIT");
       const paperResult = await client.query(`SELECT p.*, (f.paper_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
         FROM papers p LEFT JOIN paper_pdfs f ON f.paper_id = p.id ORDER BY p.updated_at DESC`);
       const thesisResult = await client.query(`SELECT t.*, (f.thesis_id IS NOT NULL) AS has_pdf, f.filename AS pdf_name, f.size_bytes AS pdf_size
         FROM theses t LEFT JOIN thesis_pdfs f ON f.thesis_id = t.id ORDER BY t.updated_at DESC`);
-      return json(response, 200, { papers: paperResult.rows.map(fromRow), theses: thesisResult.rows.map(thesisFromRow) });
+      const congressResult = await client.query("SELECT * FROM congresses ORDER BY event_date DESC, updated_at DESC");
+      return json(response, 200, { papers: paperResult.rows.map(fromRow), theses: thesisResult.rows.map(thesisFromRow), congresses: congressResult.rows.map(congressFromRow) });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -365,6 +425,12 @@ async function initialize() {
   await pool.query("ALTER TABLE theses ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'Propia'");
   await pool.query("ALTER TABLE theses ADD COLUMN IF NOT EXISTS thesis_year INTEGER");
   await pool.query("CREATE INDEX IF NOT EXISTS theses_updated_at_idx ON theses (updated_at DESC)");
+  await pool.query(`CREATE TABLE IF NOT EXISTS congresses (
+    id UUID PRIMARY KEY, title TEXT NOT NULL, event_name TEXT NOT NULL, event_date DATE NOT NULL,
+    location TEXT, link TEXT, notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query("CREATE INDEX IF NOT EXISTS congresses_event_date_idx ON congresses (event_date DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS paper_pdfs (
     paper_id UUID PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,
     filename TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'application/pdf', size_bytes INTEGER NOT NULL,

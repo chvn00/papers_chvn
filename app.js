@@ -4,9 +4,10 @@ const ACTIVE = new Set(["Listo para envío", "Enviado", "En revisión", "Revisi�
 const SUCCESS = new Set(["Aceptado", "Publicado"]);
 const FINAL = new Set(["Aceptado", "Publicado", "Rechazado", "Retirado"]);
 const $ = selector => document.querySelector(selector);
-const elements = { list: $("#paperList"), empty: $("#emptyState"), statistics: $("#statisticsPanel"), dialog: $("#paperDialog"), form: $("#paperForm"), thesisDialog: $("#thesisDialog"), thesisForm: $("#thesisForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
+const elements = { list: $("#paperList"), empty: $("#emptyState"), statistics: $("#statisticsPanel"), dialog: $("#paperDialog"), form: $("#paperForm"), thesisDialog: $("#thesisDialog"), thesisForm: $("#thesisForm"), congressDialog: $("#congressDialog"), congressForm: $("#congressForm"), search: $("#searchInput"), statusFilter: $("#statusFilter"), sort: $("#sortFilter"), toast: $("#toast"), authGate: $("#authGate"), loginForm: $("#loginForm"), loginError: $("#loginError"), pdfDialog: $("#pdfDialog"), pdfFrame: $("#pdfFrame"), pdfPages: $("#pdfPages") };
 let papers = loadLocalPapers();
 let theses = [];
+let congresses = [];
 let currentLibraryTab = "working";
 let thesisFormCategory = "Propia";
 let pdfJsPromise;
@@ -41,15 +42,17 @@ function showApp() {
 
 async function loadDatabase() {
   const localBackup = loadLocalPapers();
-  let [remote, remoteTheses] = await Promise.all([request("/api/papers"), request("/api/theses")]);
+  let [remote, remoteTheses, remoteCongresses] = await Promise.all([request("/api/papers"), request("/api/theses"), request("/api/congresses")]);
   if (!remote.length && localBackup.length) {
     const migration = await request("/api/import", { method: "POST", body: JSON.stringify({ papers: localBackup, replace: false }) });
     remote = Array.isArray(migration) ? migration : migration.papers;
     if (!Array.isArray(migration) && Array.isArray(migration.theses)) remoteTheses = migration.theses;
+    if (!Array.isArray(migration) && Array.isArray(migration.congresses)) remoteCongresses = migration.congresses;
     showToast(`${localBackup.length} registros migrados a PostgreSQL`);
   }
   papers = remote;
   theses = remoteTheses;
+  congresses = remoteCongresses;
   saveLocalMirror();
   render();
 }
@@ -91,6 +94,12 @@ function filteredTheses() {
     .sort((a, b) => ["directed", "evaluated"].includes(currentLibraryTab) ? (Number(b.year || documentYear(b)) || 0) - (Number(a.year || documentYear(a)) || 0) || (b.updatedAt || "").localeCompare(a.updatedAt || "") : (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
+function filteredCongresses() {
+  const query = elements.search.value.trim().toLocaleLowerCase("es");
+  return congresses.filter(congress => !query || [congress.title, congress.eventName, congress.location, congress.notes].join(" ").toLocaleLowerCase("es").includes(query))
+    .sort((a, b) => (b.eventDate || "").localeCompare(a.eventDate || "") || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+}
+
 function paperCardHTML(paper) {
   const link = safeURL(paper.link);
   const published = paper.status === "Publicado";
@@ -108,6 +117,11 @@ function thesisCardHTML(thesis) {
   const degreeMedal = directed ? `<div class="quartile-medal degree-medal ${thesis.degree === "Maestría" ? "master-medal" : ""}" aria-label="Tesis de ${escapeHTML(thesis.degree)}" title="${escapeHTML(thesis.degree)}"><span>${thesis.degree === "Maestría" ? "Master" : "DOC"}</span></div>` : "";
   const badge = directed ? "Tesis dirigida" : evaluated ? "Tesis evaluada" : "Tesis";
   return `<article class="paper-card thesis-card ${directed ? "directed-thesis-card" : ""} ${evaluated ? "evaluated-thesis-card" : ""} ${thesis.hasPdf ? "has-pdf" : ""}" data-thesis-id="${thesis.id}" ${thesis.hasPdf ? `tabindex="0" role="button" aria-label="Previsualizar PDF de ${escapeHTML(thesis.title)}"` : ""}>${degreeMedal}<div class="paper-card-main"><span class="badge thesis-badge">${badge}</span><h3>${escapeHTML(thesis.title)}</h3><div class="paper-meta thesis-meta"><span><strong>Universidad</strong>${escapeHTML(thesis.university)}</span><span><strong>${directed ? "Nivel" : "Grado"}</strong>${escapeHTML(thesis.degree)}</span>${directed || evaluated ? `<span><strong>Año</strong>${escapeHTML(thesis.year || documentYear(thesis))}</span>` : ""}</div></div><div class="publication-row thesis-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir tesis ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer thesis-footer"><div class="paper-resources">${thesis.hasPdf ? `<button class="paper-link pdf-open" type="button" data-preview-thesis-pdf="${thesis.id}" title="${escapeHTML(thesis.pdfName)}">Ver PDF</button>` : ""}<button class="pdf-upload" type="button" data-upload-thesis-pdf="${thesis.id}">${thesis.hasPdf ? "Reemplazar PDF" : "Cargar PDF"}</button></div><div class="card-actions"><button class="icon-button" type="button" data-edit-thesis="${thesis.id}" aria-label="Editar ${escapeHTML(thesis.title)}">✎</button><button class="icon-button" type="button" data-delete-thesis="${thesis.id}" aria-label="Eliminar ${escapeHTML(thesis.title)}">×</button></div></div></article>`;
+}
+
+function congressCardHTML(congress) {
+  const link = safeURL(congress.link);
+  return `<article class="paper-card congress-card" data-congress-id="${congress.id}"><div class="paper-card-main"><span class="badge congress-badge">Congreso</span><h3>${escapeHTML(congress.title)}</h3><div class="paper-meta congress-meta"><span><strong>Evento</strong>${escapeHTML(congress.eventName)}</span><span><strong>Fecha</strong>${formatDate(congress.eventDate)}</span>${congress.location ? `<span><strong>Lugar</strong>${escapeHTML(congress.location)}</span>` : ""}</div>${congress.notes ? `<p class="paper-notes">${escapeHTML(congress.notes)}</p>` : ""}</div><div class="publication-row congress-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir evento ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer"><span class="congress-date-mark">${formatDate(congress.eventDate)}</span><div class="card-actions"><button class="icon-button" type="button" data-edit-congress="${congress.id}" aria-label="Editar ${escapeHTML(congress.title)}">✎</button><button class="icon-button" type="button" data-delete-congress="${congress.id}" aria-label="Eliminar ${escapeHTML(congress.title)}">×</button></div></div></article>`;
 }
 
 function documentYear(item) {
@@ -237,11 +251,22 @@ function renderStatistics() {
 
 function render() {
   const viewingTheses = ["theses", "directed", "evaluated"].includes(currentLibraryTab);
+  const viewingCongresses = currentLibraryTab === "congresses";
   const viewingDirected = currentLibraryTab === "directed";
   const viewingEvaluated = currentLibraryTab === "evaluated";
   const viewingStatistics = currentLibraryTab === "statistics";
-  const visible = viewingStatistics ? [] : viewingTheses ? filteredTheses() : filteredPapers();
+  const visible = viewingStatistics ? [] : viewingCongresses ? filteredCongresses() : viewingTheses ? filteredTheses() : filteredPapers();
   if (viewingStatistics) elements.list.innerHTML = "";
+  else if (viewingCongresses) {
+    let activeYear = "";
+    elements.list.innerHTML = visible.map(congress => {
+      const year = congress.eventDate?.slice(0, 4) || "Sin año";
+      const yearCount = visible.filter(item => (item.eventDate?.slice(0, 4) || "Sin año") === year).length;
+      const heading = year !== activeYear ? `<div class="year-heading congress-year-heading"><span>${escapeHTML(year)}</span><small>${yearCount} ${yearCount === 1 ? "congreso" : "congresos"}</small></div>` : "";
+      activeYear = year;
+      return `${heading}${congressCardHTML(congress)}`;
+    }).join("");
+  }
   else if (viewingDirected || viewingEvaluated) {
     let activeYear = "";
     elements.list.innerHTML = visible.map(thesis => {
@@ -275,13 +300,14 @@ function render() {
   elements.statistics.hidden = !viewingStatistics;
   elements.empty.hidden = viewingStatistics || visible.length > 0;
   elements.list.hidden = viewingStatistics || visible.length === 0;
-  $("#emptyTitle").textContent = viewingEvaluated ? "Aún no hay tesis evaluadas" : viewingDirected ? "Aún no hay tesis dirigidas" : viewingTheses ? "Aún no hay tesis registradas" : currentLibraryTab === "published" ? "Aún no hay papers publicados" : "Aquí comienza tu archivo";
-  $("#emptyMessage").textContent = viewingEvaluated ? "Agrega la primera tesis que hayas evaluado." : viewingDirected ? "Agrega una tesis de Maestría o Doctorado que hayas dirigido." : viewingTheses ? "Agrega la primera tesis con su universidad, grado y enlace." : currentLibraryTab === "published" ? "Cuando un paper cambie a Publicado aparecerá aquí, organizado por año." : "Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.";
+  $("#emptyTitle").textContent = viewingCongresses ? "Aún no hay congresos registrados" : viewingEvaluated ? "Aún no hay tesis evaluadas" : viewingDirected ? "Aún no hay tesis dirigidas" : viewingTheses ? "Aún no hay tesis registradas" : currentLibraryTab === "published" ? "Aún no hay papers publicados" : "Aquí comienza tu archivo";
+  $("#emptyMessage").textContent = viewingCongresses ? "Agrega tu primera participación y la verás organizada por fecha." : viewingEvaluated ? "Agrega la primera tesis que hayas evaluado." : viewingDirected ? "Agrega una tesis de Maestría o Doctorado que hayas dirigido." : viewingTheses ? "Agrega la primera tesis con su universidad, grado y enlace." : currentLibraryTab === "published" ? "Cuando un paper cambie a Publicado aparecerá aquí, organizado por año." : "Agrega tu primer manuscrito para empezar a seguir su recorrido editorial.";
   $("#emptyAddButton").hidden = currentLibraryTab === "published";
-  $("#emptyAddButton").textContent = viewingEvaluated ? "Registrar tesis evaluada" : viewingDirected ? "Registrar tesis dirigida" : viewingTheses ? "Registrar una tesis" : "Registrar un paper";
-  $("#resultsCount").textContent = viewingStatistics ? "4 gráficos" : viewingTheses ? `${visible.length} ${visible.length === 1 ? "tesis" : "tesis"}` : `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
+  $("#emptyAddButton").textContent = viewingCongresses ? "Registrar un congreso" : viewingEvaluated ? "Registrar tesis evaluada" : viewingDirected ? "Registrar tesis dirigida" : viewingTheses ? "Registrar una tesis" : "Registrar un paper";
+  $("#resultsCount").textContent = viewingStatistics ? "4 gráficos" : viewingCongresses ? `${visible.length} ${visible.length === 1 ? "congreso" : "congresos"}` : viewingTheses ? `${visible.length} ${visible.length === 1 ? "tesis" : "tesis"}` : `${visible.length} ${visible.length === 1 ? "registro" : "registros"}`;
   $("#workingTabCount").textContent = papers.filter(p => p.status !== "Publicado").length;
   $("#publishedTabCount").textContent = papers.filter(p => p.status === "Publicado").length;
+  $("#congressesTabCount").textContent = congresses.length;
   $("#thesesTabCount").textContent = theses.filter(thesis => (thesis.category || "Propia") === "Propia").length;
   $("#directedTabCount").textContent = theses.filter(thesis => thesis.category === "Dirigida").length;
   $("#evaluatedTabCount").textContent = theses.filter(thesis => thesis.category === "Evaluada").length;
@@ -305,17 +331,18 @@ function setLibraryTab(tab) {
     button.setAttribute("aria-selected", String(selected));
   });
   const published = tab === "published";
+  const congressView = tab === "congresses";
   const thesisView = ["theses", "directed", "evaluated"].includes(tab);
   const viewingStatistics = tab === "statistics";
-  const simpleView = published || thesisView || viewingStatistics;
+  const simpleView = published || congressView || thesisView || viewingStatistics;
   $("#quartileStats").hidden = !published;
   $("#libraryFilters").hidden = viewingStatistics;
   $("#statusFilterField").hidden = simpleView;
   $("#sortFilterField").hidden = simpleView;
   $("#libraryFilters").classList.toggle("published", simpleView);
-  $("#newPaperButton").textContent = tab === "evaluated" ? "+ Tesis evaluada" : tab === "directed" ? "+ Tesis dirigida" : tab === "theses" ? "+ Nueva tesis" : "+ Nuevo paper";
-  $("#libraryTitle").textContent = viewingStatistics ? "Estadísticas" : tab === "evaluated" ? "Tesis evaluadas" : tab === "directed" ? "Tesis dirigidas" : tab === "theses" ? "Tesis CHVN" : "Manuscritos";
-  elements.search.placeholder = thesisView ? "Buscar por título, universidad o grado…" : "Buscar por título, revista o coautor…";
+  $("#newPaperButton").textContent = congressView ? "+ Nuevo congreso" : tab === "evaluated" ? "+ Tesis evaluada" : tab === "directed" ? "+ Tesis dirigida" : tab === "theses" ? "+ Nueva tesis" : "+ Nuevo paper";
+  $("#libraryTitle").textContent = viewingStatistics ? "Estadísticas" : congressView ? "Congresos" : tab === "evaluated" ? "Tesis evaluadas" : tab === "directed" ? "Tesis dirigidas" : tab === "theses" ? "Tesis CHVN" : "Manuscritos";
+  elements.search.placeholder = congressView ? "Buscar por trabajo, congreso, lugar o notas…" : thesisView ? "Buscar por título, universidad o grado…" : "Buscar por título, revista o coautor…";
   elements.statusFilter.value = "";
   elements.search.value = "";
   render();
@@ -364,7 +391,24 @@ function openThesisForm(thesis = null, category = currentLibraryTab === "directe
   setTimeout(() => $("#thesisTitle").focus(), 50);
 }
 function closeThesisForm() { elements.thesisDialog.close(); }
-function openCurrentForm() { ["theses", "directed", "evaluated"].includes(currentLibraryTab) ? openThesisForm() : openForm(); }
+function openCongressForm(congress = null) {
+  elements.congressForm.reset();
+  $("#congressId").value = congress?.id || "";
+  $("#congressDialogEyebrow").textContent = congress ? "Editar registro" : "Nuevo registro";
+  $("#congressDialogTitle").textContent = congress ? "Actualizar congreso" : "Agregar congreso";
+  if (congress) {
+    $("#congressTitle").value = congress.title || "";
+    $("#congressName").value = congress.eventName || "";
+    $("#congressDate").value = congress.eventDate || "";
+    $("#congressLocation").value = congress.location || "";
+    $("#congressLink").value = congress.link || "";
+    $("#congressNotes").value = congress.notes || "";
+  }
+  elements.congressDialog.showModal();
+  setTimeout(() => $("#congressTitle").focus(), 50);
+}
+function closeCongressForm() { elements.congressDialog.close(); }
+function openCurrentForm() { currentLibraryTab === "congresses" ? openCongressForm() : ["theses", "directed", "evaluated"].includes(currentLibraryTab) ? openThesisForm() : openForm(); }
 function showToast(message) { elements.toast.textContent = message; elements.toast.classList.add("show"); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => elements.toast.classList.remove("show"), 2800); }
 
 elements.loginForm.addEventListener("submit", async event => {
@@ -398,7 +442,20 @@ elements.thesisForm.addEventListener("submit", async event => {
   } catch (error) { alert(error.message); }
 });
 
+elements.congressForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const id = $("#congressId").value;
+  const congress = { title: $("#congressTitle").value.trim(), eventName: $("#congressName").value.trim(), eventDate: $("#congressDate").value, location: $("#congressLocation").value.trim(), link: $("#congressLink").value.trim(), notes: $("#congressNotes").value.trim() };
+  try {
+    const saved = await request(id ? `/api/congresses/${id}` : "/api/congresses", { method: id ? "PUT" : "POST", body: JSON.stringify(congress) });
+    if (id) congresses = congresses.map(item => item.id === id ? saved : item); else congresses.unshift(saved);
+    render(); closeCongressForm(); showToast(id ? "Congreso actualizado en PostgreSQL" : "Congreso guardado en PostgreSQL");
+  } catch (error) { alert(error.message); }
+});
+
 elements.list.addEventListener("click", async event => {
+  const editCongressId = event.target.closest("[data-edit-congress]")?.dataset.editCongress;
+  const deleteCongressId = event.target.closest("[data-delete-congress]")?.dataset.deleteCongress;
   const editThesisId = event.target.closest("[data-edit-thesis]")?.dataset.editThesis;
   const deleteThesisId = event.target.closest("[data-delete-thesis]")?.dataset.deleteThesis;
   const uploadThesisPdfId = event.target.closest("[data-upload-thesis-pdf]")?.dataset.uploadThesisPdf;
@@ -412,6 +469,14 @@ elements.list.addEventListener("click", async event => {
   const addCitationId = event.target.closest("[data-add-citation]")?.dataset.addCitation;
   const openFolderId = event.target.closest("[data-open-folder]")?.dataset.openFolder;
   const addFolderId = event.target.closest("[data-add-folder]")?.dataset.addFolder;
+  if (editCongressId) openCongressForm(congresses.find(item => item.id === editCongressId));
+  if (deleteCongressId) {
+    const congress = congresses.find(item => item.id === deleteCongressId);
+    if (confirm(`¿Eliminar el congreso “${congress.title}”? Esta acción no se puede deshacer.`)) {
+      try { await request(`/api/congresses/${deleteCongressId}`, { method: "DELETE" }); congresses = congresses.filter(item => item.id !== deleteCongressId); render(); showToast("Congreso eliminado"); }
+      catch (error) { alert(error.message); }
+    }
+  }
   if (editThesisId) { const thesis = theses.find(item => item.id === editThesisId); openThesisForm(thesis, thesis.category || "Propia"); }
   if (uploadThesisPdfId) selectPdf(theses.find(thesis => thesis.id === uploadThesisPdfId), event.target.closest("[data-upload-thesis-pdf]"), "theses");
   if (previewThesisPdfId) openPdfPreview(theses.find(thesis => thesis.id === previewThesisPdfId), "theses");
@@ -628,20 +693,23 @@ document.querySelectorAll("[data-library-tab]").forEach(button => button.addEven
 $("#status").addEventListener("change", syncQuartileField);
 [$("#closeDialogButton"), $("#cancelButton")].forEach(button => button.addEventListener("click", closeForm));
 [$("#closeThesisDialogButton"), $("#cancelThesisButton")].forEach(button => button.addEventListener("click", closeThesisForm));
+[$("#closeCongressDialogButton"), $("#cancelCongressButton")].forEach(button => button.addEventListener("click", closeCongressForm));
 [elements.search, elements.statusFilter, elements.sort].forEach(control => control.addEventListener("input", render));
 elements.dialog.addEventListener("click", event => { if (event.target === elements.dialog) closeForm(); });
 elements.thesisDialog.addEventListener("click", event => { if (event.target === elements.thesisDialog) closeThesisForm(); });
-$("#exportButton").addEventListener("click", () => { const blob = new Blob([JSON.stringify({ version: 3, source: "PostgreSQL", exportedAt: new Date().toISOString(), papers, theses }, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `papers-chvn-${new Date().toISOString().slice(0,10)}.json`; link.click(); URL.revokeObjectURL(link.href); showToast("Respaldo exportado"); });
+elements.congressDialog.addEventListener("click", event => { if (event.target === elements.congressDialog) closeCongressForm(); });
+$("#exportButton").addEventListener("click", () => { const blob = new Blob([JSON.stringify({ version: 4, source: "PostgreSQL", exportedAt: new Date().toISOString(), papers, theses, congresses }, null, 2)], { type: "application/json" }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `papers-chvn-${new Date().toISOString().slice(0,10)}.json`; link.click(); URL.revokeObjectURL(link.href); showToast("Respaldo exportado"); });
 $("#importButton").addEventListener("click", () => $("#importInput").click());
 $("#importInput").addEventListener("change", async event => {
   const file = event.target.files[0]; if (!file) return;
   try {
     const data = JSON.parse(await file.text()); const imported = Array.isArray(data) ? data : data.papers;
     if (!Array.isArray(imported)) throw new Error("Formato inválido");
-    if ((papers.length || theses.length) && !confirm("La importación reemplazará los registros incluidos en el respaldo. ¿Continuar?")) return;
-    const result = await request("/api/import", { method: "POST", body: JSON.stringify({ papers: imported, theses: Array.isArray(data.theses) ? data.theses : undefined, replace: true }) });
+    if ((papers.length || theses.length || congresses.length) && !confirm("La importación reemplazará los registros incluidos en el respaldo. ¿Continuar?")) return;
+    const result = await request("/api/import", { method: "POST", body: JSON.stringify({ papers: imported, theses: Array.isArray(data.theses) ? data.theses : undefined, congresses: Array.isArray(data.congresses) ? data.congresses : undefined, replace: true }) });
     papers = Array.isArray(result) ? result : result.papers;
     if (!Array.isArray(result) && Array.isArray(result.theses)) theses = result.theses;
+    if (!Array.isArray(result) && Array.isArray(result.congresses)) congresses = result.congresses;
     saveLocalMirror(); render(); showToast("Respaldo importado a PostgreSQL");
   } catch (error) { alert(error.message || "No fue posible importar el respaldo"); }
   event.target.value = "";
