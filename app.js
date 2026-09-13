@@ -96,7 +96,7 @@ function filteredTheses() {
 
 function filteredCongresses() {
   const query = elements.search.value.trim().toLocaleLowerCase("es");
-  return congresses.filter(congress => !query || [congress.title, congress.eventName, congress.location, congress.notes].join(" ").toLocaleLowerCase("es").includes(query))
+  return congresses.filter(congress => !query || [congress.title, congress.eventName, congress.location, congress.citation, congress.notes].join(" ").toLocaleLowerCase("es").includes(query))
     .sort((a, b) => (b.eventDate || "").localeCompare(a.eventDate || "") || (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
@@ -121,7 +121,8 @@ function thesisCardHTML(thesis) {
 
 function congressCardHTML(congress) {
   const link = safeURL(congress.link);
-  return `<article class="paper-card congress-card" data-congress-id="${congress.id}"><div class="paper-card-main"><span class="badge congress-badge">Congreso</span><h3>${escapeHTML(congress.title)}</h3><div class="paper-meta congress-meta"><span><strong>Evento</strong>${escapeHTML(congress.eventName)}</span><span><strong>Fecha</strong>${formatDate(congress.eventDate)}</span>${congress.location ? `<span><strong>Lugar</strong>${escapeHTML(congress.location)}</span>` : ""}</div>${congress.notes ? `<p class="paper-notes">${escapeHTML(congress.notes)}</p>` : ""}</div><div class="publication-row congress-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir evento ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div><div class="card-footer"><span class="congress-date-mark">${formatDate(congress.eventDate)}</span><div class="card-actions"><button class="icon-button" type="button" data-edit-congress="${congress.id}" aria-label="Editar ${escapeHTML(congress.title)}">✎</button><button class="icon-button" type="button" data-delete-congress="${congress.id}" aria-label="Eliminar ${escapeHTML(congress.title)}">×</button></div></div></article>`;
+  const citationControl = `<div class="citation-row"><p title="${escapeHTML(congress.citation || "Cita no registrada")}">${escapeHTML(congress.citation || "Cita no registrada")}</p>${congress.citation ? `<button type="button" data-copy-congress-citation="${congress.id}">Copiar cita</button>` : `<button type="button" data-add-congress-citation="${congress.id}">Agregar cita</button>`}</div>`;
+  return `<article class="paper-card congress-card" data-congress-id="${congress.id}"><div class="paper-card-main"><span class="badge congress-badge">Congreso</span><h3>${escapeHTML(congress.title)}</h3><div class="paper-meta congress-meta"><span><strong>Evento</strong>${escapeHTML(congress.eventName)}</span><span><strong>Fecha</strong>${formatDate(congress.eventDate)}</span>${congress.location ? `<span><strong>Lugar</strong>${escapeHTML(congress.location)}</span>` : ""}</div>${congress.notes ? `<p class="paper-notes">${escapeHTML(congress.notes)}</p>` : ""}</div><div class="publication-row congress-link-row"><strong>ENLACE</strong><div>${link ? `<a class="publication-link" href="${escapeHTML(link)}" target="_blank" rel="noopener">Abrir evento ↗</a>` : `<span class="thesis-no-link">Sin enlace registrado</span>`}</div></div>${citationControl}<div class="card-footer"><span class="congress-date-mark">${formatDate(congress.eventDate)}</span><div class="card-actions"><button class="icon-button" type="button" data-edit-congress="${congress.id}" aria-label="Editar ${escapeHTML(congress.title)}">✎</button><button class="icon-button" type="button" data-delete-congress="${congress.id}" aria-label="Eliminar ${escapeHTML(congress.title)}">×</button></div></div></article>`;
 }
 
 function documentYear(item) {
@@ -402,6 +403,7 @@ function openCongressForm(congress = null) {
     $("#congressDate").value = congress.eventDate || "";
     $("#congressLocation").value = congress.location || "";
     $("#congressLink").value = congress.link || "";
+    $("#congressCitation").value = congress.citation || "";
     $("#congressNotes").value = congress.notes || "";
   }
   elements.congressDialog.showModal();
@@ -445,7 +447,7 @@ elements.thesisForm.addEventListener("submit", async event => {
 elements.congressForm.addEventListener("submit", async event => {
   event.preventDefault();
   const id = $("#congressId").value;
-  const congress = { title: $("#congressTitle").value.trim(), eventName: $("#congressName").value.trim(), eventDate: $("#congressDate").value, location: $("#congressLocation").value.trim(), link: $("#congressLink").value.trim(), notes: $("#congressNotes").value.trim() };
+  const congress = { title: $("#congressTitle").value.trim(), eventName: $("#congressName").value.trim(), eventDate: $("#congressDate").value, location: $("#congressLocation").value.trim(), link: $("#congressLink").value.trim(), citation: $("#congressCitation").value.trim(), notes: $("#congressNotes").value.trim() };
   try {
     const saved = await request(id ? `/api/congresses/${id}` : "/api/congresses", { method: id ? "PUT" : "POST", body: JSON.stringify(congress) });
     if (id) congresses = congresses.map(item => item.id === id ? saved : item); else congresses.unshift(saved);
@@ -456,6 +458,8 @@ elements.congressForm.addEventListener("submit", async event => {
 elements.list.addEventListener("click", async event => {
   const editCongressId = event.target.closest("[data-edit-congress]")?.dataset.editCongress;
   const deleteCongressId = event.target.closest("[data-delete-congress]")?.dataset.deleteCongress;
+  const copyCongressCitationId = event.target.closest("[data-copy-congress-citation]")?.dataset.copyCongressCitation;
+  const addCongressCitationId = event.target.closest("[data-add-congress-citation]")?.dataset.addCongressCitation;
   const editThesisId = event.target.closest("[data-edit-thesis]")?.dataset.editThesis;
   const deleteThesisId = event.target.closest("[data-delete-thesis]")?.dataset.deleteThesis;
   const uploadThesisPdfId = event.target.closest("[data-upload-thesis-pdf]")?.dataset.uploadThesisPdf;
@@ -470,6 +474,8 @@ elements.list.addEventListener("click", async event => {
   const openFolderId = event.target.closest("[data-open-folder]")?.dataset.openFolder;
   const addFolderId = event.target.closest("[data-add-folder]")?.dataset.addFolder;
   if (editCongressId) openCongressForm(congresses.find(item => item.id === editCongressId));
+  if (copyCongressCitationId) copyCitation(congresses.find(item => item.id === copyCongressCitationId));
+  if (addCongressCitationId) { openCongressForm(congresses.find(item => item.id === addCongressCitationId)); setTimeout(() => $("#congressCitation").focus(), 80); }
   if (deleteCongressId) {
     const congress = congresses.find(item => item.id === deleteCongressId);
     if (confirm(`¿Eliminar el congreso “${congress.title}”? Esta acción no se puede deshacer.`)) {

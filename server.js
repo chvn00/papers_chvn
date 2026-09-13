@@ -169,7 +169,7 @@ function normalizeCongress(input = {}) {
   if (!title || !eventName || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) throw new Error("Título, congreso y fecha son obligatorios");
   return {
     id: text("id") || crypto.randomUUID(), title, eventName, eventDate,
-    location: text("location"), link: text("link"), notes: text("notes"),
+    location: text("location"), link: text("link"), citation: text("citation"), notes: text("notes"),
     createdAt: text("createdAt") || new Date().toISOString(), updatedAt: new Date().toISOString()
   };
 }
@@ -177,16 +177,16 @@ function normalizeCongress(input = {}) {
 function congressFromRow(row) {
   const dateOnly = value => !value ? "" : (typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10));
   const iso = value => value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-  return { id: row.id, title: row.title, eventName: row.event_name, eventDate: dateOnly(row.event_date), location: row.location || "", link: row.link || "", notes: row.notes || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) };
+  return { id: row.id, title: row.title, eventName: row.event_name, eventDate: dateOnly(row.event_date), location: row.location || "", link: row.link || "", citation: row.citation || "", notes: row.notes || "", createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) };
 }
 
-const congressUpsertSql = `INSERT INTO congresses (id, title, event_name, event_date, location, link, notes, created_at, updated_at)
-  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+const congressUpsertSql = `INSERT INTO congresses (id, title, event_name, event_date, location, link, citation, notes, created_at, updated_at)
+  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
   ON CONFLICT (id) DO UPDATE SET title=EXCLUDED.title, event_name=EXCLUDED.event_name, event_date=EXCLUDED.event_date,
-  location=EXCLUDED.location, link=EXCLUDED.link, notes=EXCLUDED.notes, updated_at=EXCLUDED.updated_at RETURNING *`;
+  location=EXCLUDED.location, link=EXCLUDED.link, citation=EXCLUDED.citation, notes=EXCLUDED.notes, updated_at=EXCLUDED.updated_at RETURNING *`;
 
 function congressValues(congress) {
-  return [congress.id, congress.title, congress.eventName, congress.eventDate, congress.location, congress.link, congress.notes, congress.createdAt, congress.updatedAt];
+  return [congress.id, congress.title, congress.eventName, congress.eventDate, congress.location, congress.link, congress.citation, congress.notes, congress.createdAt, congress.updatedAt];
 }
 
 async function api(request, response, pathname) {
@@ -427,9 +427,10 @@ async function initialize() {
   await pool.query("CREATE INDEX IF NOT EXISTS theses_updated_at_idx ON theses (updated_at DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS congresses (
     id UUID PRIMARY KEY, title TEXT NOT NULL, event_name TEXT NOT NULL, event_date DATE NOT NULL,
-    location TEXT, link TEXT, notes TEXT,
+    location TEXT, link TEXT, citation TEXT, notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
+  await pool.query("ALTER TABLE congresses ADD COLUMN IF NOT EXISTS citation TEXT");
   await pool.query("CREATE INDEX IF NOT EXISTS congresses_event_date_idx ON congresses (event_date DESC)");
   await pool.query(`CREATE TABLE IF NOT EXISTS paper_pdfs (
     paper_id UUID PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Registro personal de manuscritos, revistas, coautores, filiaciones y estados editoriales.">
   <title>Papers CHVN</title>
-  <link rel="stylesheet" href="styles.css?v=20260913-38">
+  <link rel="stylesheet" href="styles.css?v=20260913-39">
 </head>
 <body class="app-locked">
   <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
@@ -213,6 +213,7 @@
         <label>Fecha <span>*</span><input id="congressDate" type="date" required></label>
         <label>Ciudad / lugar <input id="congressLocation" placeholder="Ej. Bogotá, Colombia"></label>
         <label>Enlace <input id="congressLink" type="url" placeholder="https://…"></label>
+        <label class="full">Cita del trabajo <textarea id="congressCitation" rows="3" placeholder="Pega aquí la cita completa en el formato que prefieras"></textarea></label>
         <label class="full">Notas <textarea id="congressNotes" rows="3" placeholder="Tipo de participación, autores, detalles…"></textarea></label>
       </div>
       <div class="dialog-actions">
@@ -247,6 +248,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260913-38"></script>
+  <script src="app.js?v=20260913-39"></script>
 </body>
 </html>
